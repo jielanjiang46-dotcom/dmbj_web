@@ -1,9 +1,31 @@
-<p>
-    <a href="{% url 'main_app:navigation' %}">点击进入青铜门，探索终极的秘密</a>
-</p>
+{% load static %}
 
-<p>青铜门小笔记</p>
+<!DOCTYPE html> 
+<html lang="zh-CN"> 
 
-<p>桃李春风一杯酒，江湖夜雨十年灯</p>
+<head>
+    <meta charset="UTF-8"> 
+    <title>青铜门小笔记</title>
+    <link rel="stylesheet" href="{% static 'main_app/style.css' %}">
+</head>
 
-<p>我们只是，好久不见</p>
+<body>
+    <!-- 加这一层包裹，是为了让内容居中显示 -->
+    <div class="container-style">
+
+        <p>
+            <a href="{% url 'main_app:navigation' %}">点击进入青铜门，探索终极的秘密</a>
+        </p>
+
+        <p>青铜门小笔记</p>
+
+        <p>桃李春风一杯酒，</p>
+        
+        <p>江湖夜雨十年灯。</p>
+
+        <p class="footer-text">我们只是，好久不见。</p>
+
+    </div>
+</body>
+
+</html> 

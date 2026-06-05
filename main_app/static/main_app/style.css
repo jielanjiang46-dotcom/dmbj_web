@@ -1,0 +1,75 @@
+/* 全局设置：营造深夜氛围 */
+body {
+    /* 并不是纯黑，而是带有极微弱蓝色的深灰，更有质感 */
+    background-color: #1a1a1d;
+    color: #c5c6c7; /* 文字不是纯白，是柔和的银灰色，不刺眼 */
+    font-family: "Songti SC", "SimSun", "STSong", serif; /* 强制使用宋体，更有文学气息 */
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center; /* 水平居中 */
+    align-items: center;     /* 垂直居中 */
+    min-height: 100vh;       /* 占满整个屏幕高度 */
+    line-height: 1.8;        /* 增加行间距，让诗句呼吸 */
+}
+
+/* 主容器：像一个神秘的石碑或笔记 */
+.container-style {
+    /* 这里利用 body 的 flex 布局，让内容在屏幕正中间 */
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05); /* 极其微弱的白色背景，制造层次 */
+    padding: 40px 60px;
+    border-radius: 8px;    /* 圆角 */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); /* 深沉的投影，增加立体感 */
+    border: 1px solid rgba(255, 255, 255, 0.1); /* 若隐若现的边框 */
+    max-width: 600px;      /* 限制宽度，防止在大屏幕上拉太长 */
+}
+
+/* 针对 p 标签的微调 */
+p {
+    margin-bottom: 20px;   /* 段落之间要有距离 */
+    font-size: 1.1rem;     /* 稍微大一点的字 */
+    letter-spacing: 2px;   /* 字间距拉开，显得优雅 */
+}
+
+/* 重点诗句的高亮（可选） */
+p:nth-child(2) {
+    color: #e0e0e0;
+    font-weight: bold;
+    font-size: 1.3rem;
+    margin-top: 30px;
+    margin-bottom: 30px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 20px 0;
+}
+
+/* 给最后一句加上特殊的斜体样式 */
+.footer-text {
+    font-style: italic;       /* 1. 变成斜体 */
+    opacity: 0.6;             /* 2. 变淡一点，制造“回忆感” */
+    letter-spacing: 2px;      /* 3. 字与字之间拉开一点距离 */
+    margin-top: 20px;         /* 4. 和上面的诗句拉开距离，留出呼吸空间 */
+    font-size: 0.9rem;        /* 5. 字号稍微小一点，作为注脚 */
+}
+
+/* 那个神秘的链接按钮 */
+a {
+    display: inline-block;
+    text-decoration: none;
+    color: #66fcf1; /* 青色，带点科幻/神秘感 */
+    border: 1px solid #66fcf1;
+    padding: 10px 25px;
+    border-radius: 50px; /* 胶囊形状 */
+    transition: all 0.3s ease; /* 动画过渡 */
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+}
+
+/* 鼠标悬停时的特效：发光 */
+a:hover {
+    background-color: #66fcf1;
+    color: #1a1a1d; /* 文字变黑 */
+    box-shadow: 0 0 15px #66fcf1; /* 霓虹灯般的发光效果 */
+    transform: translateY(-2px); /* 微微上浮 */
+}
