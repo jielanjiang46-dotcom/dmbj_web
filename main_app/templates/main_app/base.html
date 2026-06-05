@@ -1,9 +1,44 @@
-<p>
-    <a href="{% url 'main_app:index' %}">青铜门前-首页</a>
-    |
-    <a href="{% url 'main_app:navigation' %}">谜海归巢-导航页</a>
-</p>
+<!-- templates/base.html -->
+{% load static %} <!-- 必须加这一行才能引用静态文件 -->
 
-<p>北派四姑出品，必属精品</p>
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}青铜门小笔记{% endblock %}</title>
+    <!-- 引入刚才写的 CSS -->
+    <link rel="stylesheet" href="{% static 'main_app/style.css' %}">
+</head>
+<body>
 
-{% block content %} {% endblock content %}
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="nav-links">
+            <a href="{% url 'main_app:index' %}">青铜门前-首页</a> |
+            <a href="{% url 'main_app:navigation' %}">谜海归巢-导航页</a>
+        </div>
+        <!-- 这里可以放一些右上角的状态，或者留空 -->
+    </nav>
+
+    <!-- 主要内容区域 -->
+    <div class="main-container">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <!-- 底部区域：放置登出按钮 -->
+    <footer>
+        {% if user.is_authenticated %}
+            <p>当前用户：{{ user.username }}</p>
+            <form action="{% url 'accounts:logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="logout-btn">登出 (离开青铜门)</button>
+            </form>
+        {% else %}
+            <p>未登录状态</p>
+        {% endif %}
+        <p>&copy; 2026 北派四姑出品 | 必属精品</p>
+    </footer>
+
+</body>
+</html>

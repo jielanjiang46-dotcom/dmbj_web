@@ -1,31 +1,47 @@
-{% load static %}
+{% extends 'main_app/base.html' %}
 
-<!DOCTYPE html> 
-<html lang="zh-CN"> 
+{% block content %}
 
-<head>
-    <meta charset="UTF-8"> 
-    <title>青铜门小笔记</title>
-    <link rel="stylesheet" href="{% static 'main_app/style.css' %}">
-</head>
+<div class="bronze-card">
 
-<body>
-    <!-- 加这一层包裹，是为了让内容居中显示 -->
-    <div class="container-style">
+    <!-- 情况 A：用户已登录 -->
+    {% if user.is_authenticated %}
+        <h2 class="welcome-text">欢迎来到青铜门，{{ user.username }}。</h2>
+        <p class="poem-text">
+            桃李春风一杯酒，<br>江湖夜雨十年灯。<br><br>
+            我们只是，好久不见。
+        </p>
+        <!-- 点击进入导航页的按钮 -->
+        <a href="{% url 'main_app:navigation' %}" class="btn-enter">
+            点击进入青铜门，探索终极的秘密
+        </a>
 
-        <p>
-            <a href="{% url 'main_app:navigation' %}">点击进入青铜门，探索终极的秘密</a>
+    <!-- 情况 B：用户未登录 -->
+    {% else %}
+        <h2 class="bronze-title">青铜门小笔记</h2>
+        <p class="poem-text">
+            桃李春风一杯酒，<br>江湖夜雨十年灯。<br><br>
+            <span style="font-size: 0.9em; color: #666;">我们只是，好久不见。</span>
         </p>
 
-        <p>青铜门小笔记</p>
+        <!-- 登录表单 -->
+        <div class="login-area">
+            <form action="{% url 'accounts:login' %}" method="post">
+                {% csrf_token %}
+                <!-- 简单的用户名密码输入框，你可以根据 form 变量调整 -->
+                <input type="text" name="username" placeholder="请输入稻米代号 (用户名)" class="form-input" required>
+                <input type="password" name="password" placeholder="请输入通关密语 (密码)" class="form-input" required>
 
-        <p>桃李春风一杯酒，</p>
-        
-        <p>江湖夜雨十年灯。</p>
+                <button type="submit" class="btn-enter">
+                    验证身份，进入青铜门
+                </button>
+            </form>
+            <p style="margin-top:15px; font-size:12px;">
+                还没有账号？ <a href="{% url 'accounts:register' %}" style="color:#4db6ac;">在此注册</a>
+            </p>
+        </div>
+    {% endif %}
 
-        <p class="footer-text">我们只是，好久不见。</p>
+</div>
 
-    </div>
-</body>
-
-</html> 
+{% endblock %}

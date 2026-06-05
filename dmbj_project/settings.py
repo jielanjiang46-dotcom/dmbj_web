@@ -41,6 +41,7 @@ INSTALLED_APPS = [
 
     # my apps
     'main_app',
+    'accounts',
 ]
 
 MIDDLEWARE = [
@@ -124,3 +125,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# 我的设置
+LOGIN_REDIRECT_URL = 'main_app:navigation'
+LOGOUT_REDIRECT_URL = 'main_app:index'
