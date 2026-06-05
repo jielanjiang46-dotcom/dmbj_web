@@ -2,14 +2,20 @@
 
   {% block content %}
 
-    <p>Topic: {{ topic.text }}</p>
+    <p>主题: {{ topic.text }}</p>
 
-    <p>Entries:</p>
+    <p>内容:</p>
+    <p>
+    <a href="{% url 'main_app:new_entry' topic.id %}">增加一条新内容</a>
+    </p>
     <ul>
       {% for entry in entries %}
         <li>
          <p>{{ entry.date_added|date:'M d, Y H:i' }}</p>
          <p>{{ entry.text|linebreaks }}</p>
+         <p>
+          <a href="{% url 'main_app:edit_entry' entry.id %}">
+           编辑内容</a></p>
         </li>
       {% empty %}
       <li>There are no entries for this topic yet.</li>

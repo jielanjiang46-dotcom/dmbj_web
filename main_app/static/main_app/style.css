@@ -28,7 +28,7 @@ body {
 /* 针对 p 标签的微调 */
 p {
     margin-bottom: 20px;   /* 段落之间要有距离 */
-    font-size: 1.1rem;     /* 稍微大一点的字 */
+    font-size: 1.5rem;     /* 稍微大一点的字 */
     letter-spacing: 2px;   /* 字间距拉开，显得优雅 */
 }
 
@@ -36,7 +36,7 @@ p {
 p:nth-child(2) {
     color: #e0e0e0;
     font-weight: bold;
-    font-size: 1.3rem;
+    font-size: 2rem;
     margin-top: 30px;
     margin-bottom: 30px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -50,7 +50,7 @@ p:nth-child(2) {
     opacity: 0.6;             /* 2. 变淡一点，制造“回忆感” */
     letter-spacing: 2px;      /* 3. 字与字之间拉开一点距离 */
     margin-top: 20px;         /* 4. 和上面的诗句拉开距离，留出呼吸空间 */
-    font-size: 0.9rem;        /* 5. 字号稍微小一点，作为注脚 */
+    font-size: 1.1rem;        /* 5. 字号稍微小一点，作为注脚 */
 }
 
 /* 那个神秘的链接按钮 */
@@ -73,3 +73,4 @@ a:hover {
     box-shadow: 0 0 15px #66fcf1; /* 霓虹灯般的发光效果 */
     transform: translateY(-2px); /* 微微上浮 */
 }
+

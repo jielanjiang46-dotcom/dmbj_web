@@ -1,0 +1,15 @@
+{% extends "main_app/base.html" %}
+
+{% block content %}
+
+   <p><a href="{% url 'main_app:topic' topic.id %}">{{ topic }}</a></p>
+
+   <p>编辑内容:</p>
+
+   <form action="{% url 'main_app:edit_entry' entry.id %}" method='post'>
+     {% csrf_token %}
+     {{ form.as_div }}
+     <button name="submit">保存更改</button>
+   </form>
+
+{% endblock content %}
