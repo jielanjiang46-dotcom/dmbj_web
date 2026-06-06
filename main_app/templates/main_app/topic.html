@@ -1,25 +1,233 @@
-{% extends 'main_app/base.html' %}
+{% extends "main_app/base.html" %}
 
-  {% block content %}
+{% block content %}
 
-    <p>主题: {{ topic.text }}</p>
+<!-- ================= 自定义 CSS 样式 ================= -->
+<style>
+    /* 页面容器 */
+    .topic-container { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .topic-header { text-align: center; margin-bottom: 30px; position: relative; }
+    .topic-title { font-size: 2.5em; color: #fff; margin-bottom: 10px; }
 
-    <p>内容:</p>
-    <p>
-    <a href="{% url 'main_app:new_entry' topic.id %}">增加一条新内容</a>
-    </p>
-    <ul>
-      {% for entry in entries %}
-        <li>
-         <p>{{ entry.date_added|date:'M d, Y H:i' }}</p>
-         <p>{{ entry.text|linebreaks }}</p>
-         <p>
-          <a href="{% url 'main_app:edit_entry' entry.id %}">
-           编辑内容</a></p>
-        </li>
-      {% empty %}
-      <li>There are no entries for this topic yet.</li>
-      {% endfor %}
-    </ul>
+    /* 排序选择器 */
+    .sort-selector {
+        display: inline-block; background: #333; border: 1px solid #555;
+        color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer;
+    }
 
-  {% endblock content %}
+    /* --- 帖子卡片核心样式 --- */
+    .entry-card {
+        background-color: #ffffff; border-radius: 10px; padding: 20px;
+        margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        display: flex; gap: 15px;
+    }
+
+    /* 左侧头像 */
+    .user-avatar {
+        width: 50px; height: 50px; border-radius: 50%; background-color: #ddd;
+        flex-shrink: 0; background-size: cover; background-position: center;
+    }
+
+    /* 右侧内容区 */
+    .entry-content { flex-grow: 1; color: black; }
+
+    /* 用户名与正文 */
+    .username { font-weight: bold; color: #333; font-size: 1.1em; }
+    .entry-text { font-size: 1.1em; color: #222; margin: 10px 0; line-height: 1.6; }
+
+    /* --- 底部信息区 (Requirement: 按钮在最右边) --- */
+    .entry-footer {
+        display: flex;
+        justify-content: space-between; /* 关键：两端对齐 */
+        align-items: center;
+        border-top: 1px solid #eee;
+        padding-top: 10px; margin-top: 10px;
+        color: #888; font-size: 0.9em;
+    }
+
+    /* 互动按钮 */
+    .actions button, .actions a {
+        background: none; border: none; cursor: pointer;
+        color: #666; font-size: 1em; margin-left: 15px; /* 增加按钮间距 */
+        display: inline-flex; align-items: center; gap: 5px;
+        transition: color 0.2s;
+    }
+    .actions button:hover, .actions a:hover { color: #d9534f; }
+
+    /* --- 评论区样式 --- */
+    .comment-section {
+        background-color: #f9f9f9; padding: 15px; border-radius: 8px;
+        margin-top: 15px; display: none; /* 默认隐藏 */
+        border: 1px solid #eee;
+    }
+
+    /* 单条评论 */
+    .comment-item {
+        border-bottom: 1px dashed #ccc; padding: 8px 0;
+        color: #000; /* Requirement: 强制黑色文字 */
+        position: relative; /* 为了定位删除/编辑按钮 */
+    }
+
+    /* 评论的操作按钮 (删除/编辑) */
+    .comment-actions {
+        float: right; font-size: 0.8em; margin-left: 10px;
+    }
+    .comment-actions button {
+        background: none; border: none; cursor: pointer; padding: 2px 5px;
+    }
+    .btn-delete { color: red; }
+    .btn-edit { color: blue; }
+
+    /* 输入框区域 */
+    .comment-input-area { margin-top: 10px; display: flex; gap: 10px; }
+    .comment-input-area textarea {
+        flex-grow: 1; border-radius: 4px; border: 1px solid #ccc;
+        padding: 8px; resize: vertical; min-height: 40px;
+    }
+</style>
+
+<div class="topic-container">
+    <!-- 1. 顶部区域 -->
+    <div class="topic-header">
+        <h1 class="topic-title">{{ topic.text }}</h1>
+
+        <div style="margin-bottom: 15px;">
+            <span style="color:#aaa; font-size: 0.9em;">排序方式：</span>
+            <select class="sort-selector" onchange="window.location.href=this.value">
+                <option value="?order=newest" {% if request.GET.order == 'newest' or not request.GET.order %}selected{% endif %}>最新发布 (Newest)</option>
+                <option value="?order=oldest" {% if request.GET.order == 'oldest' %}selected{% endif %}>最早发布 (Oldest)</option>
+            </select>
+        </div>
+
+        <a href="{% url 'main_app:new_entry' topic.id %}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">+ 写新笔记</a>
+    </div>
+
+    <!-- 2. 遍历条目 -->
+    {% for entry in entries %}
+    <div class="entry-card" id="card-{{ entry.id }}">
+        <!-- 左侧头像 -->
+        <div class="user-avatar" style="background-image: url('{{ entry.owner.profile.avatar.url }}');"></div>
+
+        <div class="entry-content">
+            <!-- 用户名 -->
+            <div class="username">{{ entry.owner.username }}</div>
+            <!-- 帖子内容 -->
+            <div class="entry-text">{{ entry.text|linebreaks }}</div>
+
+            <!-- 底部信息：日期 + 互动按钮 -->
+            <div class="entry-footer">
+                <span>{{ entry.date_added|date:"Y年m月d日 H:i" }}</span>
+
+                <div class="actions">
+                    <!-- 点赞 -->
+                    <form action="{% url 'main_app:like_entry' entry.id %}" method="POST" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit">❤️ 喜欢 ({{ entry.likes.count }})</button>
+                    </form>
+
+                    <!-- 评论开关 -->
+                    <button onclick="toggleComment({{ entry.id }})">
+                        💬 评论 ({{ entry.comments.count }})
+                    </button>
+            
+                    {% if user == entry.owner %}
+                      <!-- 编辑按钮 -->
+                      <a href="{% url 'main_app:edit_entry' entry.id %}" style="color:blue; text-decoration:none;">
+                      ✏️ 编辑
+                      </a>
+
+                      <!-- 删除按钮 (使用表单防止误触) -->
+                      <form action="{% url 'main_app:delete_entry' entry.id %}" method="POST" style="display:inline;" onsubmit="return confirm('确定要删除这条笔记吗？此操作不可恢复！');">
+                    {% csrf_token %}
+                      <button type="submit" style="background:none; border:none; color:red; cursor:pointer; font-size:1em;">
+                      🗑️ 删除
+                      </button>
+                    {% endif %}
+
+                  
+                </div>
+            </div>
+
+            <!-- === 评论区面板 (ID 必须唯一) === -->
+            <div id="comment-box-{{ entry.id }}" class="comment-section">
+                <div id="comment-list-{{ entry.id }}">
+                    {% for comment in entry.comments.all %}
+                    <div class="comment-item" id="comment-row-{{ comment.id }}">
+                        <strong>{{ comment.user.username }}:</strong>
+                        <span id="text-content-{{ comment.id }}">{{ comment.content }}</span>
+
+                        <!-- 只有作者本人能看到操作按钮 -->
+                        {% if user == comment.user %}
+                        <div class="comment-actions">
+                            <button class="btn-edit" onclick="editComment({{ comment.id }}, '{{ comment.content|escapejs }}', {{ entry.id }})">编辑</button>
+                            <form action="{% url 'main_app:delete_comment' comment.id %}" method="POST" style="display:inline;" onsubmit="return confirm('确定要删除这条评论吗？');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-delete">删除</button>
+                            </form>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                        <p style="color:#666; font-style: italic;">暂无评论，快来抢沙发！</p>
+                    {% endfor %}
+                </div>
+
+                <!-- 评论输入表单 -->
+                <form action="{% url 'main_app:add_comment' entry.id %}" method="POST" class="comment-input-area" id="form-{{ entry.id }}">
+                    {% csrf_token %}
+                    <textarea name="content" id="input-{{ entry.id }}" rows="2" placeholder="写下你的想法..."></textarea>
+                    <button type="submit" style="background:#333; color:white; border:none; padding:0 15px; border-radius:4px; cursor:pointer;">发送</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- ================= JavaScript 逻辑 ================= -->
+<script>
+    // 1. 切换评论区显示/隐藏
+    function toggleComment(entryId) {
+        var box = document.getElementById('comment-box-' + entryId);
+        if (box.style.display === 'none' || box.style.display === '') {
+            box.style.display = 'block';
+        } else {
+            box.style.display = 'none';
+        }
+    }
+
+    // 2. 编辑评论功能
+    function editComment(commentId, content, entryId) {
+        // A. 找到对应的输入框
+        var inputArea = document.getElementById('input-' + entryId);
+        // B. 找到对应的表单
+        var form = document.getElementById('form-' + entryId);
+
+        if (inputArea && form) {
+            // C. 填充旧内容
+            inputArea.value = content;
+            inputArea.focus();
+
+            // D. 动态修改表单的提交地址 (指向编辑接口)
+            // 假设你的 urls.py 里定义了 path('comment/<int:id>/edit/', ...)
+            // 如果还没定义 URL，这里会报错，请确保后端路由已就绪
+            form.action = "/comment/" + commentId + "/edit/";
+
+            // E. 自动展开评论区 (防止用户没点开评论区导致看不到输入框变化)
+            var commentBox = document.getElementById('comment-box-' + entryId);
+            if (commentBox.style.display === 'none' || commentBox.style.display === '') {
+                commentBox.style.display = 'block';
+            }
+
+            // F. 滚动到输入框位置
+            inputArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            alert("已进入编辑模式，修改后点击发送即可更新。");
+        } else {
+            console.error("找不到对应的输入框或表单，请检查 ID 命名。");
+        }
+    }
+</script>
+
+{% endblock %}

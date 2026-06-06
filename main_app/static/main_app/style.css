@@ -136,3 +136,72 @@ footer {
     padding: 5px 10px;
     cursor: pointer;
 }
+
+/* 新月饭店 */
+
+/* 帖子容器：限制宽度，居中，背景稍微亮一点 */
+.feed-container {
+    max-width: 700px; /* 类似微博的宽度 */
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column; /* 关键：垂直排列 */
+    gap: 20px; /* 帖子之间的间距 */
+}
+
+/* 单个帖子卡片 */
+.post-card {
+    background-color: #ffffff; /* 白色卡片 */
+    color: #333; /* 深色文字 */
+    padding: 20px;
+    border-radius: 12px; /* 圆角 */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* 阴影 */
+}
+
+/* 头部布局 */
+.post-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+/* 圆形头像 */
+.avatar-circle {
+    width: 45px;
+    height: 45px;
+    background-color: #ddd;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #555;
+    margin-right: 12px;
+    font-size: 1.2rem;
+}
+
+/* 用户名样式 */
+.username {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #2c3e50;
+}
+
+/* 内容区域 */
+.post-content {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    word-wrap: break-word; /* 防止长单词溢出 */
+}
+
+/* 底部时间 */
+.post-footer {
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+    text-align: right; /* 时间靠右，或者你可以改成 left */
+}
+
+.post-time {
+    font-size: 0.85rem;
+    color: #999;
+}
