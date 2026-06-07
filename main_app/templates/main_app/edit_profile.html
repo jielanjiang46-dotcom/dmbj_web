@@ -3,47 +3,201 @@
 {% extends "main_app/base.html" %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">编辑个人资料</h4>
-                </div>
-                <div class="card-body">
-                    <!-- 【关键点】必须加 enctype="multipart/form-data"，否则头像无法上传 -->
-                    <form method="post" enctype="multipart/form-data">
-                        {% csrf_token %}
 
-                        <!-- 显示当前头像预览 (可选) -->
-                        <div class="text-center mb-4">
-                            {% if profile.avatar %}
-                                <img src="{{ profile.avatar.url }}" alt="当前头像" class="rounded-circle mb-2" style="width: 100px; height: 100px; object-fit: cover;">
-                                <p class="text-muted small">当前头像</p>
-                            {% else %}
-                                <div class="bg-secondary rounded-circle d-inline-block mb-2" style="width: 100px; height: 100px;"></div>
-                                <p class="text-muted small">暂无头像</p>
-                            {% endif %}
-                        </div>
+<style>
+    /* 复用之前的布局逻辑，确保风格统一 */
+    .edit-page-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh;
+        padding: 20px;
+    }
 
-                        <!-- 个人简介输入框 -->
-                        <div class="form-group mb-3">
-                            <label for="bio">个人简介 / 签名</label>
-                            <textarea class="form-control" id="bio" name="bio" rows="3">{{ profile.bio }}</textarea>
-                            <small class="form-text text-muted">介绍一下你自己吧...</small>
-                        </div>
+    .elegant-form-card {
+        background-color: #fdfbf7; /* 米白色背景 */
+        border: 2px solid #d4af37; /* 金色边框 */
+        width: 100%;
+        max-width: 500px; /* 编辑页面通常比展示页面窄一点，显得精致 */
+        padding: 40px;
+        border-radius: 4px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        color: #333;
+    }
 
-                        <!-- 更换头像输入框 -->
-                        <div class="form-group mb-3">
-                            <label for="avatar">更换头像</label>
-                            <input type="file" class="form-control-file" id="avatar" name="avatar">
-                        </div>
+    .form-title {
+        text-align: center;
+        font-size: 1.5rem;
+        margin-bottom: 30px;
+        color: #333;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
 
-                        <button type="submit" class="btn btn-success btn-block">保存修改</button>
-                    </form>
+    /* 头像预览区域 */
+    .avatar-preview-area {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .current-avatar-img {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border: 2px solid #eee;
+        padding: 2px;
+        margin-bottom: 10px;
+    }
+
+    .avatar-label {
+        display: block;
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 5px;
+    }
+
+    /* 表单控件美化 */
+    .custom-input-group {
+        margin-bottom: 20px;
+    }
+
+    .custom-input-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #444;
+    }
+
+    .custom-textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #fff;
+        font-family: inherit;
+        resize: vertical; /* 允许垂直拉伸 */
+        box-sizing: border-box; /* 防止padding撑破宽度 */
+        transition: border-color 0.3s;
+    }
+
+    .custom-textarea:focus {
+        outline: none;
+        border-color: #d4af37; /* 聚焦时变金边 */
+    }
+
+    /* 文件上传按钮美化 (隐藏原生丑陋的 input) */
+    .file-upload-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        width: 100%;
+    }
+
+    .btn-upload {
+        border: 1px dashed #d4af37;
+        color: #d4af37;
+        background-color: transparent;
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        width: 100%;
+        text-align: center;
+        transition: all 0.3s;
+        box-sizing: border-box;
+    }
+
+    .btn-upload:hover {
+        background-color: #d4af37;
+        color: #fff;
+    }
+
+    /* 真正的 input 透明覆盖在上面 */
+    .file-upload-wrapper input[type=file] {
+        font-size: 100px;
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    /* 提交按钮 */
+    .btn-submit {
+        width: 100%;
+        padding: 12px;
+        background-color: #333; /* 深色按钮显高级 */
+        color: #d4af37; /* 金色文字 */
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        margin-top: 10px;
+    }
+
+    .btn-submit:hover {
+        background-color: #000;
+    }
+
+    .helper-text {
+        font-size: 0.8rem;
+        color: #888;
+        margin-top: 5px;
+    }
+</style>
+
+<div class="edit-page-wrapper">
+    <div class="elegant-form-card">
+        <h2 class="form-title">编辑个人资料</h2>
+
+        <!-- 【关键点】必须加 enctype="multipart/form-data"，否则头像无法上传 -->
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- 头像预览与上传区 -->
+            <div class="avatar-preview-area">
+                {% if profile.avatar %}
+                    <img src="{{ profile.avatar.url }}" alt="当前头像" class="current-avatar-img">
+                {% else %}
+                    <!-- 如果没有头像，显示一个占位符 -->
+                    <div style="width: 100px; height: 100px; background: #eee; margin: 0 auto 10px; border-radius: 4px;"></div>
+                {% endif %}
+                <span class="avatar-label">当前头像</span>
+
+                <!-- 美化的文件上传按钮 -->
+                <div class="file-upload-wrapper">
+                    <button class="btn-upload" type="button">点击更换头像</button>
+                    <input type="file" id="avatar" name="avatar" accept="image/*">
                 </div>
             </div>
-        </div>
+
+            <!-- 简介输入框 -->
+            <div class="custom-input-group">
+                <label for="bio">个人简介 / 签名</label>
+                <textarea class="custom-textarea" id="bio" name="bio" rows="4" placeholder="介绍一下你自己吧...">{{ profile.bio }}</textarea>
+                <div class="helper-text">可以在这里写下你的想法哦~</div>
+            </div>
+
+            <!-- 提交按钮 -->
+            <button type="submit" class="btn-submit">保存修改</button>
+        </form>
     </div>
 </div>
+
+<script>
+    // 简单的JS：当用户选择了文件后，改变按钮文字提示文件名
+    document.querySelector('input[type="file"]').addEventListener('change', function(e) {
+        var fileName = e.target.files[0].name;
+        var btn = document.querySelector('.btn-upload');
+        if(fileName) {
+            btn.innerText = "已选择: " + fileName;
+            btn.style.borderColor = "#333";
+            btn.style.color = "#333";
+        }
+    });
+</script>
+
 {% endblock content %}

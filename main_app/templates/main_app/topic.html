@@ -22,10 +22,21 @@
         display: flex; gap: 15px;
     }
 
-    /* 左侧头像 */
+    /* 左侧头像区域 - 增加 hover 效果提示可点击 */
+    .user-avatar-link {
+        display: block;
+        width: 50px; height: 50px;
+        flex-shrink: 0;
+        transition: transform 0.2s ease;
+    }
+    .user-avatar-link:hover {
+        transform: scale(1.05); /* 鼠标悬停时轻微放大 */
+    }
+
     .user-avatar {
         width: 50px; height: 50px; border-radius: 50%; background-color: #ddd;
-        flex-shrink: 0; background-size: cover; background-position: center;
+        background-size: cover; background-position: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     /* 右侧内容区 */
@@ -35,10 +46,10 @@
     .username { font-weight: bold; color: #333; font-size: 1.1em; }
     .entry-text { font-size: 1.1em; color: #222; margin: 10px 0; line-height: 1.6; }
 
-    /* --- 底部信息区 (Requirement: 按钮在最右边) --- */
+    /* --- 底部信息区 --- */
     .entry-footer {
         display: flex;
-        justify-content: space-between; /* 关键：两端对齐 */
+        justify-content: space-between;
         align-items: center;
         border-top: 1px solid #eee;
         padding-top: 10px; margin-top: 10px;
@@ -48,7 +59,7 @@
     /* 互动按钮 */
     .actions button, .actions a {
         background: none; border: none; cursor: pointer;
-        color: #666; font-size: 1em; margin-left: 15px; /* 增加按钮间距 */
+        color: #666; font-size: 1em; margin-left: 15px;
         display: inline-flex; align-items: center; gap: 5px;
         transition: color 0.2s;
     }
@@ -61,24 +72,16 @@
         border: 1px solid #eee;
     }
 
-    /* 单条评论 */
     .comment-item {
         border-bottom: 1px dashed #ccc; padding: 8px 0;
-        color: #000; /* Requirement: 强制黑色文字 */
-        position: relative; /* 为了定位删除/编辑按钮 */
+        color: #000; position: relative;
     }
 
-    /* 评论的操作按钮 (删除/编辑) */
-    .comment-actions {
-        float: right; font-size: 0.8em; margin-left: 10px;
-    }
-    .comment-actions button {
-        background: none; border: none; cursor: pointer; padding: 2px 5px;
-    }
+    .comment-actions { float: right; font-size: 0.8em; margin-left: 10px; }
+    .comment-actions button { background: none; border: none; cursor: pointer; padding: 2px 5px; }
     .btn-delete { color: red; }
     .btn-edit { color: blue; }
 
-    /* 输入框区域 */
     .comment-input-area { margin-top: 10px; display: flex; gap: 10px; }
     .comment-input-area textarea {
         flex-grow: 1; border-radius: 4px; border: 1px solid #ccc;
@@ -106,12 +109,29 @@
     <!-- 2. 遍历条目 -->
     {% for entry in entries %}
     <div class="entry-card" id="card-{{ entry.id }}">
-        <!-- 左侧头像 -->
-        <div class="user-avatar" style="background-image: url('{{ entry.owner.profile.avatar.url }}');"></div>
+
+        <!-- 【修改点 1】：主贴头像链接 -->
+        {% if entry.owner and entry.owner.username %}
+            <a href="{% url 'main_app:user_profile' entry.owner.username %}" class="user-avatar-link" title="查看 {{ entry.owner.username }} 的主页">
+                <div class="user-avatar" style="background-image: url('{{ entry.owner.profile.avatar.url }}');"></div>
+            </a>
+        {% else %}
+            <!-- 容错处理：如果没有作者，显示灰色占位符 -->
+            <div class="user-avatar" style="background-color: #ccc;"></div>
+        {% endif %}
 
         <div class="entry-content">
-            <!-- 用户名 -->
-            <div class="username">{{ entry.owner.username }}</div>
+            <!-- 【修改点 2】：主贴用户名链接 -->
+            <div class="username">
+                {% if entry.owner and entry.owner.username %}
+                    <a href="{% url 'main_app:user_profile' entry.owner.username %}" style="text-decoration:none; color:inherit;">
+                        {{ entry.owner.username }}
+                    </a>
+                {% else %}
+                    [未知用户]
+                {% endif %}
+            </div>
+
             <!-- 帖子内容 -->
             <div class="entry-text">{{ entry.text|linebreaks }}</div>
 
@@ -130,34 +150,45 @@
                     <button onclick="toggleComment({{ entry.id }})">
                         💬 评论 ({{ entry.comments.count }})
                     </button>
-            
+
                     {% if user == entry.owner %}
                       <!-- 编辑按钮 -->
                       <a href="{% url 'main_app:edit_entry' entry.id %}" style="color:blue; text-decoration:none;">
                       ✏️ 编辑
                       </a>
 
-                      <!-- 删除按钮 (使用表单防止误触) -->
+                      <!-- 删除按钮 -->
                       <form action="{% url 'main_app:delete_entry' entry.id %}" method="POST" style="display:inline;" onsubmit="return confirm('确定要删除这条笔记吗？此操作不可恢复！');">
-                    {% csrf_token %}
-                      <button type="submit" style="background:none; border:none; color:red; cursor:pointer; font-size:1em;">
-                      🗑️ 删除
-                      </button>
+                        {% csrf_token %}
+                        <button type="submit" style="background:none; border:none; color:red; cursor:pointer; font-size:1em;">
+                        🗑️ 删除
+                        </button>
+                      </form>
                     {% endif %}
-
-                  
                 </div>
             </div>
 
-            <!-- === 评论区面板 (ID 必须唯一) === -->
+            <!-- === 评论区面板 === -->
             <div id="comment-box-{{ entry.id }}" class="comment-section">
                 <div id="comment-list-{{ entry.id }}">
                     {% for comment in entry.comments.all %}
                     <div class="comment-item" id="comment-row-{{ comment.id }}">
-                        <strong>{{ comment.user.username }}:</strong>
+
+                        <!-- 【修改点 3】：评论用户名链接 -->
+                        <div class="comment-header">
+                            {% if comment.user and comment.user.username %}
+                                <a href="{% url 'main_app:user_profile' comment.user.username %}"
+                                   style="text-decoration: none; color: #333; font-weight: bold;"
+                                   title="查看 {{ comment.user.username }} 的主页">
+                                    {{ comment.user.username }}
+                                </a>:
+                            {% else %}
+                                <span style="color: #999;">[未知用户]</span>:
+                            {% endif %}
+                        </div>
+
                         <span id="text-content-{{ comment.id }}">{{ comment.content }}</span>
 
-                        <!-- 只有作者本人能看到操作按钮 -->
                         {% if user == comment.user %}
                         <div class="comment-actions">
                             <button class="btn-edit" onclick="editComment({{ comment.id }}, '{{ comment.content|escapejs }}', {{ entry.id }})">编辑</button>
@@ -169,14 +200,14 @@
                         {% endif %}
                     </div>
                     {% empty %}
-                        <p style="color:#666; font-style: italic;">暂无评论，快来抢沙发！</p>
+                        <p style="color:#666; font-style: italic;">这里还没有贵宾入座。</p>
                     {% endfor %}
                 </div>
 
                 <!-- 评论输入表单 -->
                 <form action="{% url 'main_app:add_comment' entry.id %}" method="POST" class="comment-input-area" id="form-{{ entry.id }}">
                     {% csrf_token %}
-                    <textarea name="content" id="input-{{ entry.id }}" rows="2" placeholder="写下你的想法..."></textarea>
+                    <textarea name="content" id="input-{{ entry.id }}" rows="2" placeholder="待君畅所欲言..."></textarea>
                     <button type="submit" style="background:#333; color:white; border:none; padding:0 15px; border-radius:4px; cursor:pointer;">发送</button>
                 </form>
             </div>
@@ -200,30 +231,22 @@
 
     // 2. 编辑评论功能
     function editComment(commentId, content, entryId) {
-        // A. 找到对应的输入框
         var inputArea = document.getElementById('input-' + entryId);
-        // B. 找到对应的表单
         var form = document.getElementById('form-' + entryId);
 
         if (inputArea && form) {
-            // C. 填充旧内容
             inputArea.value = content;
             inputArea.focus();
 
-            // D. 动态修改表单的提交地址 (指向编辑接口)
-            // 假设你的 urls.py 里定义了 path('comment/<int:id>/edit/', ...)
-            // 如果还没定义 URL，这里会报错，请确保后端路由已就绪
+            // 动态修改表单的提交地址
             form.action = "/comment/" + commentId + "/edit/";
 
-            // E. 自动展开评论区 (防止用户没点开评论区导致看不到输入框变化)
             var commentBox = document.getElementById('comment-box-' + entryId);
             if (commentBox.style.display === 'none' || commentBox.style.display === '') {
                 commentBox.style.display = 'block';
             }
 
-            // F. 滚动到输入框位置
             inputArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
             alert("已进入编辑模式，修改后点击发送即可更新。");
         } else {
             console.error("找不到对应的输入框或表单，请检查 ID 命名。");

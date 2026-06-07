@@ -3,71 +3,133 @@
 {% extends "main_app/base.html" %}
 
 {% block content %}
-<div class="container">
-    <div class="row justify-content-center mt-5"> <!-- 使用 justify-content-center 让卡片居中 -->
 
-        <!-- 调整宽度：这里用 col-md-8 让框变宽，或者你可以改成 col-md-6 -->
-        <div class="col-md-8 col-lg-6">
+<style>
+    /* 页面容器：让卡片居中显示 */
+    .profile-page-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh; /* 占据屏幕大部分高度 */
+        padding: 20px;
+    }
 
-            <!-- 外层大框：添加自定义背景色和内边距 -->
-            <div class="card shadow-sm border-0 rounded-3 p-4 custom-profile-card">
+    /* 核心大框样式 */
+    .elegant-profile-card {
+        background-color: #f0ddb8; /* 米白色背景 */
+        border: 2px solid #d4af37; /* 金色边框 (类似香槟金) */
+        width: 100%;
+        max-width: 650px; /* 限制最大宽度 */
+        padding: 40px;
+        border-radius: 4px; /* 轻微圆角，显得精致 */
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); /* 柔和的阴影 */
+        color: #333;
+    }
 
-                <!-- 头部区域：头像 + 用户名 (Flex布局实现横向排列) -->
-                <div class="d-flex align-items-center mb-4">
-                    <!-- 头像部分 -->
-                    <div class="flex-shrink-0">
-                        {% if profile.avatar %}
-                            <img src="{{ profile.avatar.url }}"
-                                 class="rounded-circle shadow-sm"
-                                 style="width: 90px; height: 90px; object-fit: cover; border: 3px solid #fff;">
-                        {% else %}
-                            <!-- 默认占位图 -->
-                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white"
-                                 style="width: 90px; height: 90px; font-size: 2rem;">
-                                ?
-                            </div>
-                        {% endif %}
-                    </div>
+    /* 上半部分：头像 + 名字 (Flex布局) */
+    .card-header-row {
+        display: flex;
+        align-items: center; /* 垂直居中对齐 */
+        border-bottom: 1px solid rgba(212, 175, 55, 0.3); /* 淡金色的分割线 */
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+    }
 
-                    <!-- 用户名与简介 (紧挨着头像) -->
-                    <div class="ms-4 flex-grow-1"> <!-- ms-4 增加左边距 -->
-                        <h2 class="mb-1 fw-bold text-dark">{{ profile_user.username }}</h2>
-                        <p class="text-muted mb-0 fst-italic small">
-                            {{ profile.bio|default:"暂无签名，快去编辑资料吧~" }}
-                        </p>
-                    </div>
-                </div>
+    /* 头像样式 */
+    .avatar-img {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%; /* 圆形头像 */
+        object-fit: cover;
+        border: 2px solid #d4af37; /* 给头像也加个金边呼应 */
+        margin-right: 20px; /* 头像和文字的间距 */
+        flex-shrink: 0; /* 防止头像被压缩 */
+    }
 
-                <hr class="my-4 opacity-25">
+    /* 用户名区域 */
+    .user-name-area h2 {
+        margin: 0;
+        font-size: 24px;
+        color: #2c2c2c;
+        font-weight: bold;
+    }
 
-                <!-- 底部信息区域：注册时间 & 按钮 -->
-                <div class="d-flex justify-content-between align-items-center">
-                    <!-- 左侧：注册时间 -->
-                    <div class="small text-secondary">
-                        <i class="bi bi-calendar-event me-1"></i> <!-- 假设有Bootstrap Icons，没有的话删掉这行 -->
-                        注册于: {{ profile_user.date_joined|date:"Y年m月d日" }}
-                    </div>
+    /* 下半部分：详细信息 */
+    .card-body-info {
+        font-size: 15px;
+        line-height: 1.6;
+        color: #555;
+    }
 
-                    <!-- 右侧：编辑按钮 (仅本人可见) -->
-                    {% if is_me %}
-                        <a href="{% url 'main_app:edit_profile' %}" class="btn btn-outline-dark btn-sm px-3 rounded-pill">
-                            编辑资料
-                        </a>
-                    {% endif %}
-                </div>
+    .info-item {
+        margin-bottom: 10px;
+    }
 
+    .label {
+        color: #8a7326; /* 深金色标签 */
+        font-weight: bold;
+        margin-right: 5px;
+    }
+
+    /* 按钮样式优化 */
+    .edit-btn {
+        display: inline-block;
+        margin-top: 15px;
+        padding: 8px 20px;
+        background-color: transparent;
+        border: 1px solid #d4af37;
+        color: #d4af37;
+        text-decoration: none;
+        border-radius: 20px;
+        transition: all 0.3s ease;
+        font-size: 14px;
+    }
+
+    .edit-btn:hover {
+        background-color: #d4af37;
+        color: #fff;
+    }
+</style>
+
+<div class="profile-page-wrapper">
+    <div class="elegant-profile-card">
+
+        <!-- 第一部分：头像与名字 (横向排列) -->
+        <div class="card-header-row">
+            {% if profile.avatar %}
+                <img src="{{ profile.avatar.url }}" alt="Avatar" class="avatar-img">
+            {% else %}
+                <!-- 如果没有头像，显示一个带金边的占位符 -->
+                <div class="avatar-img" style="background-color: #eee; display: flex; align-items: center; justify-content: center; color: #999;">No Img</div>
+            {% endif %}
+
+            <div class="user-name-area">
+                <h2>{{ profile_user.username }}</h2>
+                <!-- 这里可以放一行小字，比如用户组或者ID -->
+                <small style="color: #888;">ID: {{ profile_user.id }}</small>
             </div>
         </div>
+
+        <!-- 第二部分：其他信息 (在下方) -->
+        <div class="card-body-info">
+            <div class="info-item">
+                <span class="label">个性签名:</span>
+                <span>{{ profile.bio|default:"这似乎是一个神秘的稻米。" }}</span>
+            </div>
+
+            <div class="info-item">
+                <span class="label">此人于</span>
+                <span>{{ profile_user.date_joined|date:"Y年m月d日" }}</span>
+                <span class="label">入局</span>
+            </div>
+
+            <!-- 编辑按钮 -->
+            {% if is_me %}
+                <a href="{% url 'main_app:edit_profile' %}" class="edit-btn">编辑个人资料</a>
+            {% endif %}
+        </div>
+
     </div>
 </div>
 
-<!-- 简单的内联样式，用于设置米白色背景 -->
-<style>
-    .custom-profile-card {
-        /* 米白色背景，你可以根据喜好微调颜色代码 */
-        background-color: #fcfbf7;
-        /* 也可以加一点点边框让它更有质感 */
-        border: 1px solid #eaeaea !important;
-    }
-</style>
 {% endblock %}
