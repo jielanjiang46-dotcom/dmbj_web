@@ -2,14 +2,122 @@
 
 {% block content %}
 
-   <p><a href="{% url 'main_app:topic' topic.id %}">{{ topic }}</a></p>
+<!-- ================= 页面专用 CSS (加强版) ================= -->
+<style>
+    /* 1. 强制重置外层容器，确保能居中 */
+    .edit-page-wrapper {
+        max-width: 800px !important;
+        margin: 50px auto !important;
+        padding: 0 20px;
+        width: 100%;
+        box-sizing: border-box;
+    }
 
-   <p>编辑内容:</p>
+    /* 2. 强制白色卡片背景，防止被 base.html 的透明背景吞掉 */
+    .edit-card {
+        background-color: #ffffff !important;
+        border-radius: 12px !important;
+        padding: 40px !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+        border: 1px solid #eee;
+    }
 
-   <form action="{% url 'main_app:edit_entry' entry.id %}" method='post'>
-     {% csrf_token %}
-     {{ form.as_div }}
-     <button name="submit">保存更改</button>
-   </form>
+    /* 3. 标题美化 */
+    .edit-header h2 {
+        margin-top: 0;
+        color: #333;
+        font-size: 1.5em;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 15px;
+        margin-bottom: 25px;
+    }
+
+    /* 4. 返回链接 */
+    .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #666;
+        text-decoration: none;
+        font-size: 0.9em;
+    }
+    .back-link:hover { color: #4CAF50; }
+
+    /* 5. 【关键】强制重写表单元素样式，对抗 base.html */
+    .edit-form textarea {
+        width: 100% !important;
+        min-height: 200px !important;
+        padding: 15px !important;
+        border: 1px solid #ddd !important;
+        border-radius: 8px !important;
+        font-size: 16px !important;
+        line-height: 1.6 !important;
+        color: #333 !important;
+        background-color: #fafafa !important;
+        resize: vertical;
+        box-sizing: border-box; /* 防止padding撑破宽度 */
+        outline: none;
+        transition: border-color 0.3s;
+    }
+
+    /* 输入框聚焦时的效果 */
+    .edit-form textarea:focus {
+        border-color: #4CAF50 !important;
+        background-color: #fff !important;
+        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+    }
+
+    /* 6. 按钮样式 */
+    .btn-save {
+        background-color: #4CAF50 !important;
+        color: white !important;
+        border: none !important;
+        padding: 12px 30px !important;
+        font-size: 16px !important;
+        border-radius: 6px !important;
+        cursor: pointer !important;
+        margin-top: 20px;
+        float: right; /* 靠右对齐 */
+        transition: background-color 0.2s;
+    }
+
+    .btn-save:hover {
+        background-color: #45a049 !important;
+    }
+
+    /* 清除浮动 */
+    .clearfix::after {
+        content: "";
+        clear: both;
+        display: table;
+    }
+</style>
+
+<!-- ================= HTML 结构 ================= -->
+<div class="edit-page-wrapper">
+
+    <!-- 返回链接 -->
+    <a href="{% url 'main_app:topic' topic.id %}" class="back-link">
+        ← 返回主题：{{ topic.text }}
+    </a>
+
+    <!-- 编辑卡片 -->
+    <div class="edit-card">
+        <div class="edit-header">
+            <h2>编辑笔记</h2>
+        </div>
+
+        <form action="{% url 'main_app:edit_entry' entry.id %}" method="post" class="edit-form clearfix">
+            {% csrf_token %}
+
+            <!-- Django 表单渲染 -->
+            <!-- 注意：这里直接渲染 form.as_p 可能会带上 base.html 的某些 p 标签样式 -->
+            <!-- 如果 as_p 还是很丑，建议手动渲染字段，见下方注释 -->
+            {{ form.as_p }}
+
+            <button type="submit" name="submit" class="btn-save">保存更改</button>
+        </form>
+    </div>
+
+</div>
 
 {% endblock content %}

@@ -1,12 +1,116 @@
 {% extends "main_app/base.html" %}
 
 {% block content %}
-  <p>增加一个主题:</p>
 
-  <form action="{% url 'main_app:new_topic' %}" method='post'>
-    {% csrf_token %}
-    {{ form.as_div }}
-    <button name="submit">增加</button>
-    </form>
+<!-- ================= 页面专用 CSS (新建主题版) ================= -->
+<style>
+    /* 1. 容器：稍微宽一点，显得大气 */
+    .new-topic-wrapper {
+        max-width: 700px !important;
+        margin: 60px auto !important;
+        padding: 20px;
+    }
+
+    /* 2. 卡片样式：更圆润，阴影更深，突出“发布”的感觉 */
+    .topic-card {
+        background-color: #ffffff !important;
+        border-radius: 16px !important; /* 更大的圆角 */
+        padding: 50px 40px !important;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.15) !important; /* 悬浮感更强 */
+        text-align: center; /* 内容居中 */
+    }
+
+    /* 3. 标题样式：醒目 */
+    .topic-title {
+        font-size: 2em;
+        color: #333;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+
+    .topic-subtitle {
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 1em;
+    }
+
+    /* 4. 表单区域优化 */
+    .form-group-custom {
+        text-align: left; /* 输入框内部左对齐 */
+        margin-bottom: 20px;
+    }
+
+    /* 强制美化 Django 默认生成的 input */
+    .topic-card input[type="text"],
+    .topic-card textarea {
+        width: 100% !important;
+        padding: 12px !important;
+        border: 2px solid #eee !important;
+        border-radius: 8px !important;
+        font-size: 1.1em !important;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+    }
+
+    /* 输入框聚焦时的效果 */
+    .topic-card input[type="text"]:focus,
+    .topic-card textarea:focus {
+        border-color: #4CAF50 !important; /* 绿色高亮 */
+        outline: none;
+        box-shadow: 0 0 8px rgba(76, 175, 80, 0.2);
+    }
+
+    /* 5. 提交按钮：大号、全宽、渐变 */
+    .submit-btn-large {
+        display: block;
+        width: 100%;
+        padding: 15px 0;
+        margin-top: 30px;
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        color: white;
+        border: none;
+        border-radius: 50px; /* 胶囊形状 */
+        font-size: 1.2em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .submit-btn-large:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+
+    .submit-btn-large:active {
+        transform: translateY(0);
+    }
+</style>
+
+<!-- ================= 页面 HTML 结构 ================= -->
+<div class="new-topic-wrapper">
+    <div class="topic-card">
+
+        <!-- 头部引导语 -->
+        <h1 class="topic-title">在新月饭店开一张新桌子</h1>
+        <p class="topic-subtitle">这次你坐主位！</p>
+        <a class="topic-subtitle" href="{% url 'main_app:topics' %}">蒜鸟蒜鸟，还没想好，下次再说。</a>
+
+        <form action="{% url 'main_app:new_topic' %}" method="post">
+            {% csrf_token %}
+
+            <!-- 这里的 form.as_p 会被上面的 CSS 尽量美化，但最好手动控制 -->
+            <div class="form-group-custom">
+                {{ form.as_p }}
+            </div>
+
+            <!-- 自定义的大按钮 -->
+            <button type="submit" name="submit" class="submit-btn-large">
+                立即创建
+            </button>
+        </form>
+
+    </div>
+</div>
 
 {% endblock content %}
