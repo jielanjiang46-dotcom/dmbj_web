@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}汪家内部系统{% endblock %}</title>
+    <style>
+        /* --- 全局重置与背景设定 --- */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f4f1ea; /* 米白色/羊皮纸色背景 */
+            color: #333;
+            font-family: "Songti SC", "SimSun", serif; /* 宋体增加严肃感 */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- 顶部导航栏 --- */
+        .wang-header {
+            background-color: #e6e2d8;
+            border-bottom: 1px solid #d4af37; /* 金色边框 */
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .wang-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #5a4a42;
+            letter-spacing: 3px;
+        }
+
+        .return-btn {
+            text-decoration: none;
+            color: #8a7326;
+            border: 1px solid #8a7326;
+            padding: 6px 18px;
+            border-radius: 2px;
+            font-size: 14px;
+            transition: all 0.3s;
+            background: transparent;
+        }
+
+        .return-btn:hover {
+            background-color: #8a7326;
+            color: #fff;
+        }
+
+        /* --- 内容区域容器 --- */
+        .wang-container {
+            max-width: 900px; /*稍微加宽一点*/
+            width: 90%;
+            margin: 50px auto;
+            padding: 20px;
+            flex: 1; /* 让内容区撑开，把footer挤到底部 */
+        }
+
+        /* --- 欢迎语样式 (可选) --- */
+        .welcome-text {
+            font-size: 24px;
+            margin-bottom: 30px;
+            color: #5a4a42;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 15px;
+        }
+
+        /* --- 链接通用样式 (重点修改部分：变大、变大气) --- */
+        .nav-link {
+            display: block;
+            padding: 25px 30px; /* 增加内边距，让框框变高 */
+            margin-bottom: 20px; /* 增加间距 */
+            background: #fff;
+            border-left: 6px solid #ccc; /* 左边框加粗 */
+            text-decoration: none;
+            color: #444;
+            transition: all 0.2s;
+            font-size: 18px; /* 字体加大 */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            position: relative;
+        }
+
+        /* 激活状态（可点击） */
+        .nav-link.active {
+            border-left-color: #c62828; /* 汪家红 */
+            color: #000;
+            font-weight: bold;
+        }
+
+        .nav-link.active:hover {
+            transform: translateX(8px); /* 悬停位移更大 */
+            background-color: #fffcfc;
+            box-shadow: 0 5px 15px rgba(198, 40, 40, 0.1);
+        }
+
+        /* 锁定状态（不可点击） */
+        .nav-link.locked {
+            background-color: #e9e9e9;
+            color: #999;
+            cursor: not-allowed;
+            border-left-color: #bbb;
+        }
+
+        /* --- 底部 Footer 样式 --- */
+        .wang-footer {
+            background-color: #e6e2d8;
+            border-top: 1px solid #d4af37;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-top: auto; /* 确保沉底 */
+        }
+
+        .wang-footer p {
+            margin: 5px 0;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 1px solid #888;
+            padding: 5px 15px;
+            cursor: pointer;
+            color: #555;
+            margin-top: 10px;
+            font-family: inherit;
+        }
+        .logout-btn:hover {
+            background: #c62828;
+            color: white;
+            border-color: #c62828;
+        }
+
+        /* 提示文字 */
+        .hint-text {
+            color: #999;
+            font-style: italic;
+            margin-top: 30px;
+            padding-left: 10px;
+            border-left: 3px solid #ddd;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 顶部导航 -->
+    <div class="wang-header">
+        <div class="wang-title">汪家内部系统</div>
+        <!-- 假设 main_app:navigation 是你的总导航页 -->
+        <a href="{% url 'main_app:navigation' %}" class="return-btn">← 谜海归巢</a>
+    </div>
+
+    <!-- 内容主体 -->
+    <div class="wang-container">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <!-- 底部区域：放置登出按钮和版权信息 -->
+    <footer class="wang-footer">
+        {% if user.is_authenticated %}
+            <!-- 这里利用 Django 自带的 user.username 动态拼接“汪”字 -->
+            <p>当前用户：汪{{ user.username|slice:"1:" }}</p>
+            <form action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="logout-btn">登出 (离开青铜门)</button>
+            </form>
+        {% else %}
+            <p>未登录状态</p>
+        {% endif %}
+
+        <p style="margin-top: 15px; opacity: 0.8;">&copy; 2026 汪派四姑出品 | 必属废品</p>
+    </footer>
+
+</body>
+</html>

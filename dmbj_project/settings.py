@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     # my apps
     'main_app',
     'accounts',
+    'wang_jia',
 ]
 
 MIDDLEWARE = [

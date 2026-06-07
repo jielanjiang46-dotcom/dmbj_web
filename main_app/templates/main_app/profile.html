@@ -1,5 +1,3 @@
-<!-- main_app/templates/main_app/profile.html -->
-
 {% extends "main_app/base.html" %}
 
 {% block content %}
@@ -10,27 +8,27 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        min-height: 60vh; /* 占据屏幕大部分高度 */
+        min-height: 60vh;
         padding: 20px;
     }
 
     /* 核心大框样式 */
     .elegant-profile-card {
-        background-color: #f0ddb8; /* 米白色背景 */
-        border: 2px solid #d4af37; /* 金色边框 (类似香槟金) */
+        background-color: #f0ddb8;
+        border: 2px solid #d4af37;
         width: 100%;
-        max-width: 650px; /* 限制最大宽度 */
+        max-width: 650px;
         padding: 40px;
-        border-radius: 4px; /* 轻微圆角，显得精致 */
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); /* 柔和的阴影 */
+        border-radius: 4px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         color: #333;
     }
 
     /* 上半部分：头像 + 名字 (Flex布局) */
     .card-header-row {
         display: flex;
-        align-items: center; /* 垂直居中对齐 */
-        border-bottom: 1px solid rgba(212, 175, 55, 0.3); /* 淡金色的分割线 */
+        align-items: center;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.3);
         padding-bottom: 20px;
         margin-bottom: 20px;
     }
@@ -39,14 +37,14 @@
     .avatar-img {
         width: 80px;
         height: 80px;
-        border-radius: 50%; /* 圆形头像 */
+        border-radius: 50%;
         object-fit: cover;
-        border: 2px solid #d4af37; /* 给头像也加个金边呼应 */
-        margin-right: 20px; /* 头像和文字的间距 */
-        flex-shrink: 0; /* 防止头像被压缩 */
+        border: 2px solid #d4af37;
+        margin-right: 20px;
+        flex-shrink: 0;
     }
 
-    /* 用户名区域 */
+    /* 用户名区域 - 关键修复点 */
     .user-name-area h2 {
         margin: 0;
         font-size: 24px;
@@ -57,7 +55,7 @@
     /* 下半部分：详细信息 */
     .card-body-info {
         font-size: 15px;
-        line-height: 1.6;
+        line-height: 1.8;
         color: #555;
     }
 
@@ -66,9 +64,29 @@
     }
 
     .label {
-        color: #8a7326; /* 深金色标签 */
+        color: #8a7326;
         font-weight: bold;
         margin-right: 5px;
+    }
+
+    /* 汪家试炼状态样式 */
+    .trial-status-passed {
+        color: #2e7d32;
+        font-weight: bold;
+    }
+    .trial-status-failed {
+        color: #c62828;
+        font-weight: bold;
+    }
+
+    /* 比率高亮框 */
+    .rate-highlight {
+        display: inline-block;
+        background-color: rgba(212, 175, 55, 0.2);
+        padding: 2px 8px;
+        border-radius: 4px;
+        color: #8a7326;
+        font-weight: bold;
     }
 
     /* 按钮样式优化 */
@@ -94,23 +112,22 @@
 <div class="profile-page-wrapper">
     <div class="elegant-profile-card">
 
-        <!-- 第一部分：头像与名字 (横向排列) -->
+        <!-- ✅ 修复部分：头像和名字都在这个 row 里 -->
         <div class="card-header-row">
+            <!-- 头像 -->
             {% if profile.avatar %}
                 <img src="{{ profile.avatar.url }}" alt="Avatar" class="avatar-img">
             {% else %}
-                <!-- 如果没有头像，显示一个带金边的占位符 -->
                 <div class="avatar-img" style="background-color: #eee; display: flex; align-items: center; justify-content: center; color: #999;">No Img</div>
             {% endif %}
 
+            <!-- ✅ 这里补上了丢失的用户名区域 -->
             <div class="user-name-area">
                 <h2>{{ profile_user.username }}</h2>
-                <!-- 这里可以放一行小字，比如用户组或者ID -->
-                <small style="color: #888;">ID: {{ profile_user.id }}</small>
             </div>
         </div>
 
-        <!-- 第二部分：其他信息 (在下方) -->
+        <!-- 第二部分：其他信息 -->
         <div class="card-body-info">
             <div class="info-item">
                 <span class="label">个性签名:</span>
@@ -122,6 +139,24 @@
                 <span>{{ profile_user.date_joined|date:"Y年m月d日" }}</span>
                 <span class="label">入局</span>
             </div>
+
+            <!-- 汪家试炼状态显示 -->
+            <div class="info-item">
+                <span class="label">试炼状态:</span>
+                {% if profile.is_wang_member %}
+                    <span class="trial-status-passed">✅ 已通过汪家试炼</span>
+                {% else %}
+                    <span class="trial-status-failed">❌ 未通过汪家试炼</span>
+                {% endif %}
+            </div>
+
+            <!-- 试炼比率显示 -->
+            {% if profile.is_wang_member %}
+            <div class="info-item">
+                <span class="label">初始比率:</span>
+                <span class="rate-highlight">{{ profile.trial_rate }}</span>
+            </div>
+            {% endif %}
 
             <!-- 编辑按钮 -->
             {% if is_me %}

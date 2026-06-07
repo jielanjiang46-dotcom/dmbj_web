@@ -1,0 +1,108 @@
+{% extends "wang_jia/base.html" %}
+
+{% block content %}
+<style>
+    .trial-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 70vh;
+        padding: 20px;
+    }
+    .trial-card {
+        background-color: #f0ddb8;
+        border: 2px solid #d4af37;
+        width: 100%;
+        max-width: 600px;
+        padding: 40px;
+        border-radius: 4px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        color: #333;
+    }
+    .trial-title {
+        text-align: center;
+        font-size: 24px;
+        color: #8a7326;
+        margin-bottom: 30px;
+        font-weight: bold;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+        padding-bottom: 15px;
+    }
+    .trial-form .form-group {
+        margin-bottom: 20px;
+    }
+    .trial-form label {
+        display: block;
+        font-weight: bold;
+        color: #555;
+        margin-bottom: 8px;
+    }
+    .trial-form input[type="text"] {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #d4af37;
+        border-radius: 4px;
+        background-color: #fff;
+        font-size: 16px;
+        box-sizing: border-box;
+        outline: none;
+        transition: border-color 0.3s;
+    }
+    .trial-form input[type="text"]:focus {
+        border-color: #8a7326;
+        box-shadow: 0 0 5px rgba(212, 175, 55, 0.4);
+    }
+    .trial-submit-btn {
+        display: block;
+        width: 100%;
+        padding: 15px;
+        background-color: #d4af37;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 20px;
+        transition: background-color 0.3s;
+    }
+    .trial-submit-btn:hover {
+        background-color: #8a7326;
+    }
+</style>
+
+<div class="trial-wrapper">
+    <div class="trial-card">
+        <h2 class="trial-title">⛩️ 汪家试炼 ⛩️</h2>
+        <form method="POST" autocomplete="off" class="trial-form">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label>1. 请问汪家的创始人是谁？</label>
+                <input type="text" name="founder" placeholder="请输入你的答案..." required>
+            </div>
+            
+            <div class="form-group">
+                <label>2. 请问汪家的敌人是谁？</label>
+                <input type="text" name="enemy" placeholder="请输入你的答案..." required>
+            </div>
+            
+            <div class="form-group">
+                <label>3. 请问汪家的纹身是？</label>
+                <input type="text" name="tattoo" placeholder="请输入你的答案..." required>
+            </div>
+            
+            <div class="form-group">
+                <label>4. 请问敌人守护的秘密是什么？</label>
+                <input type="text" name="secret" placeholder="请输入你的答案..." required>
+            </div>
+            
+            <button type="submit" class="trial-submit-btn">提交试炼</button>
+            <div style="margin-top: 15px; text-align: center;">
+    <!-- href 里面填你古潼京页面的 url 路径，通常是 /wang_jia/gutongjing/ -->
+            <a href="/wang_jia/gutongjing/" class="back-link">← 返回古潼京</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

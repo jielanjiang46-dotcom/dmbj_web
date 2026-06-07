@@ -8,6 +8,10 @@ class UserProfile(models.Model):
     # 把你想要的字段加在这里
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     bio = models.CharField(max_length=200, blank=True, default="暂无签名")
+    # 记录试炼比率，默认为28
+    trial_rate = models.IntegerField(default=28) 
+    # 记录是否通过试炼
+    is_wang_member = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.user.username}的档案"

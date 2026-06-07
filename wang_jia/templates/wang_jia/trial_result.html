@@ -1,0 +1,95 @@
+{% extends "wang_jia/base.html" %}
+
+{% block content %}
+<style>
+    .result-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 70vh;
+        padding: 20px;
+    }
+    .result-card {
+        background-color: #f0ddb8;
+        border: 2px solid #d4af37;
+        width: 100%;
+        max-width: 600px;
+        padding: 50px;
+        border-radius: 4px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        color: #333;
+        text-align: center;
+    }
+    .result-title {
+        font-size: 28px;
+        margin-bottom: 20px;
+        font-weight: bold;
+    }
+    .result-rate {
+        font-size: 20px;
+        margin-bottom: 30px;
+        color: #555;
+    }
+    .rate-num {
+        font-size: 36px;
+        font-weight: bold;
+        color: #8a7326;
+    }
+    .passed { color: #2e7d32; }
+    .failed { color: #c62828; }
+    
+    .back-home-btn {
+        display: inline-block;
+        padding: 12px 30px;
+        border: 1px solid #d4af37;
+        color: #d4af37;
+        text-decoration: none;
+        border-radius: 20px;
+        transition: all 0.3s;
+        font-size: 16px;
+    }
+    .back-home-btn:hover {
+        background-color: #d4af37;
+        color: #fff;
+    }
+</style>
+
+<div class="result-wrapper">
+    <div class="result-card">
+        <!-- 根据是否通过显示不同的标题 -->
+        {% if is_passed %}
+            <h2 class="result-title passed">🎉 恭喜，{{ new_name }}！</h2>
+            <p class="result-rate">你已具备成为汪家人的基本潜质。</p>
+        {% else %}
+            <h2 class="result-title failed">⚠️ 试炼未通过，{{ new_name }}</h2>
+            <p class="result-rate">看来你对汪家一无所知啊！请多了解了解再来吧！</p>
+        {% endif %}
+
+        <!-- 显示比率 -->
+        <p class="result-rate">
+            你的初始比率为：<span class="rate-num">{{ rate }}</span>
+        </p>
+
+        {% if special_msg %}
+        <div style="
+            margin: 20px auto;
+            padding: 15px;
+            border: 1px dashed #c62828;
+            background-color: rgba(198, 40, 40, 0.1);
+            color: #c62828;
+            font-weight: bold;
+            border-radius: 8px;
+            max-width: 80%;
+">
+            ⚠️ {{ special_msg }}
+</div>
+{% endif %}
+
+        <!-- 加上 user_ 前缀，并且传入当前用户名 -->
+        <a href="{% url 'main_app:user_profile' request.user.username %}" class="back-home-btn">返回个人主页</a>
+        <div style="margin-top: 15px; text-align: center;">
+        <a href="/wang_jia/gutongjing/" class="back-link">← 返回古潼京</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

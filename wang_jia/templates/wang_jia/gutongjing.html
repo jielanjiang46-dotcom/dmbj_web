@@ -1,0 +1,40 @@
+<!-- wang_jia/templates/wang_jia/gutongjing.html -->
+{% extends "wang_jia/base.html" %}
+
+{% block title %}古潼京{% endblock %}
+
+{% block content %}
+
+    <h2 style="text-align: center; color: #5a4a42; margin-bottom: 30px;">你好,{{new_name}}!欢迎来到古潼京！</h2>
+    
+
+    <!-- 1. 试炼入口 (所有人都可见) -->
+    <a href="{% url 'wang_jia:wang_trial' %}" class="nav-link active">
+        > 试炼入口 (Entrance)
+    </a>
+
+    <!-- 2. 课程区域 (需要 is_wang_member 为 True) -->
+    {% if profile.is_wang_member %}
+        <a href="#" class="nav-link active">
+            > 白课 (White Course) <span style="font-size:12px; color:#666;">[开发中]</span>
+        </a>
+        <a href="#" class="nav-link active">
+            > 黑课 (Black Course) <span style="font-size:12px; color:#666;">[开发中]</span>
+        </a>
+    {% else %}
+        <!-- 未通过试炼显示的灰色按钮 -->
+        <div class="nav-link locked">这里还是一片茫茫白沙哦！ </div>
+        <div class="nav-link locked">这里还是一片茫茫白沙哦！ </div>
+    {% endif %}
+
+    <!-- 3. 神秘实验室 (需要 trial_rate <= 0) -->
+    {% if profile.trial_rate|default:100 <= 0 %}
+        <a href="#" class="nav-link active" style="border-left-color: #000;">
+            > 神秘实验室 (Secret Lab) <span style="font-size:12px; color:red;">[绝密]</span>
+        </a>
+    {% else %}
+        <!-- 比率未达标显示的灰色按钮 -->
+        <div class="nav-link locked">这里还是一片茫茫白沙哦！</div>
+    {% endif %}
+
+{% endblock %}
