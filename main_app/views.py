@@ -1,10 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import Http404  # 【修复1】补充缺失的导入
+from django.http import Http404 
 from django.contrib.auth.decorators import login_required
-
+from django.contrib.auth.models import User
 from .models import Topic, Entry, Comment, Like
 from .forms import TopicForm, EntryForm
-
+from accounts.models import UserProfile
 
 def index(request):
     """app的主页"""
@@ -162,3 +162,43 @@ def delete_entry(request, entry_id):
 
     # 如果是 GET 请求，可以显示一个确认页面，或者直接重定向回列表
     return redirect('main_app:topic', topic_id=topic.id)
+
+# 1. 个人主页视图
+def user_profile(request, username):
+    # 获取用户对象，如果不存在报404
+    user_obj = get_object_or_404(User, username=username)
+
+    # 获取该用户的Profile，如果没有则创建一个空的（防止报错）
+    profile, created = UserProfile.objects.get_or_create(user=user_obj)
+
+    # 获取该用户发布的所有话题，按时间倒序
+    topics = user_obj.topics.all().order_by('-date_added')
+
+    context = {
+        'profile_user': user_obj,
+        'profile': profile,
+        'topics': topics,
+        'is_me': request.user == user_obj  # 判断是不是本人访问
+    }
+    return render(request, 'main_app/profile.html', context)
+
+# 2. 编辑资料视图（仅登录用户可访问）
+@login_required
+def edit_profile(request):
+    profile, created = UserProfile.objects.get_or_create(user=request.user)
+
+    if request.method == 'POST':
+        # 处理表单提交（这里简化处理，实际建议用Form类）
+        bio = request.POST.get('bio')
+        avatar = request.FILES.get('avatar')
+
+        if bio is not None:
+            profile.bio = bio
+        if avatar:
+            profile.avatar = avatar
+
+        profile.save()
+        # 注意前面的 main_app:
+        return redirect('main_app:user_profile', username=request.user.username)
+
+    return render(request, 'main_app/edit_profile.html', {'profile': profile})

@@ -1,0 +1,49 @@
+<!-- main_app/templates/main_app/edit_profile.html -->
+
+{% extends "main_app/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">编辑个人资料</h4>
+                </div>
+                <div class="card-body">
+                    <!-- 【关键点】必须加 enctype="multipart/form-data"，否则头像无法上传 -->
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <!-- 显示当前头像预览 (可选) -->
+                        <div class="text-center mb-4">
+                            {% if profile.avatar %}
+                                <img src="{{ profile.avatar.url }}" alt="当前头像" class="rounded-circle mb-2" style="width: 100px; height: 100px; object-fit: cover;">
+                                <p class="text-muted small">当前头像</p>
+                            {% else %}
+                                <div class="bg-secondary rounded-circle d-inline-block mb-2" style="width: 100px; height: 100px;"></div>
+                                <p class="text-muted small">暂无头像</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- 个人简介输入框 -->
+                        <div class="form-group mb-3">
+                            <label for="bio">个人简介 / 签名</label>
+                            <textarea class="form-control" id="bio" name="bio" rows="3">{{ profile.bio }}</textarea>
+                            <small class="form-text text-muted">介绍一下你自己吧...</small>
+                        </div>
+
+                        <!-- 更换头像输入框 -->
+                        <div class="form-group mb-3">
+                            <label for="avatar">更换头像</label>
+                            <input type="file" class="form-control-file" id="avatar" name="avatar">
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-block">保存修改</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

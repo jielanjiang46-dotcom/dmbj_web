@@ -4,6 +4,7 @@ from django.contrib.auth.models import User # 1. 引入 User 模型
 class Topic(models.Model):
     text = models.CharField(max_length=200)
     date_added = models.DateTimeField(auto_now_add=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='topics')
 
     def __str__(self):
         return self.text

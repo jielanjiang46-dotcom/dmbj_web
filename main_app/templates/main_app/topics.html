@@ -1,20 +1,136 @@
-{% extends 'main_app/base.html' %}
+{% extends "main_app/base.html" %}
 
 {% block content %}
 
-  <p>Topics</p>
+<!-- ================= 自定义 CSS 样式 ================= -->
+<style>
+    /* 1. 页面整体容器 */
+    .topics-dashboard {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 20px;
+    }
 
-  <ul>
-    {% for topic in topics %}
-       <li>
-        <a href="{% url 'main_app:topic' topic.id %}">
-          {{ topic.text }}</a>
-      </li>
-    {% empty %}
-       <li>No topics have been added yet.</li>
-    {% endfor %}
-  </ul>
+    /* 2. 头部区域：标题 + 按钮 */
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        border-bottom: 2px solid #444;
+        padding-bottom: 15px;
+    }
 
-  <a href="{% url 'main_app:new_topic' %}">增加一个主题</a>
+    .dashboard-title {
+        font-size: 2em;
+        color: #fff;
+        margin: 0;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* 新建主题的大按钮 */
+    .btn-add-topic {
+        background-color: #4CAF50; /* 绿色，代表新增 */
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: bold;
+        transition: transform 0.2s, background-color 0.2s;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+
+    .btn-add-topic:hover {
+        background-color: #45a049;
+        transform: translateY(-2px);
+    }
+
+    /* 3. 网格布局 (Grid Layout) - 让卡片自动排列 */
+    .topics-grid {
+        display: grid;
+        /* 自动适应宽度，每列最小250px，最大1fr */
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 20px;
+    }
+
+    /* 4. 单个主题卡片样式 */
+    .topic-card {
+        background-color: #2c2c2c; /* 深灰色背景，适配你的暗色主题 */
+        border-radius: 12px;
+        padding: 20px;
+        text-decoration: none; /* 去掉链接下划线 */
+        color: #eee;
+        border: 1px solid #444;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 120px; /* 固定高度，整齐划一 */
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* 鼠标悬停效果：上浮 + 发光 */
+    .topic-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(76, 175, 80, 0.2); /* 淡淡的绿光 */
+        border-color: #4CAF50;
+        background-color: #333;
+    }
+
+    /* 卡片内的文字 */
+    .card-text {
+        font-size: 1.2em;
+        font-weight: bold;
+        z-index: 2;
+    }
+
+    /* 装饰性的小图标或角标 */
+    .card-icon {
+        font-size: 3em;
+        position: absolute;
+        right: -10px;
+        bottom: -10px;
+        opacity: 0.1; /* 半透明背景装饰 */
+        transform: rotate(-15deg);
+    }
+
+    /* 空状态提示 */
+    .empty-state {
+        grid-column: 1 / -1; /* 占满整行 */
+        text-align: center;
+        padding: 40px;
+        color: #888;
+        font-style: italic;
+        border: 2px dashed #444;
+        border-radius: 12px;
+    }
+</style>
+
+<div class="topics-dashboard">
+
+    <!-- 顶部栏 -->
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">欢迎来到新月饭店！贵宾请上座~</h1>
+        <a href="{% url 'main_app:new_topic' %}" class="btn-add-topic">
+            + 新建主题
+        </a>
+    </div>
+
+    <!-- 主题列表网格 -->
+    <div class="topics-grid">
+        {% for topic in topics %}
+            <!-- 每个主题都是一个可点击的卡片 -->
+            <a href="{% url 'main_app:topic' topic.id %}" class="topic-card">
+                <div class="card-text">{{ topic.text }}</div>
+            </a>
+        {% empty %}
+            <div class="empty-state">
+                <p>还没有任何主题哦，快去点击右上角创建一个吧！</p>
+            </div>
+        {% endfor %}
+    </div>
+
+</div>
 
 {% endblock content %}

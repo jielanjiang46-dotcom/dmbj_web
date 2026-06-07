@@ -1,0 +1,73 @@
+<!-- main_app/templates/main_app/profile.html -->
+
+{% extends "main_app/base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center mt-5"> <!-- 使用 justify-content-center 让卡片居中 -->
+
+        <!-- 调整宽度：这里用 col-md-8 让框变宽，或者你可以改成 col-md-6 -->
+        <div class="col-md-8 col-lg-6">
+
+            <!-- 外层大框：添加自定义背景色和内边距 -->
+            <div class="card shadow-sm border-0 rounded-3 p-4 custom-profile-card">
+
+                <!-- 头部区域：头像 + 用户名 (Flex布局实现横向排列) -->
+                <div class="d-flex align-items-center mb-4">
+                    <!-- 头像部分 -->
+                    <div class="flex-shrink-0">
+                        {% if profile.avatar %}
+                            <img src="{{ profile.avatar.url }}"
+                                 class="rounded-circle shadow-sm"
+                                 style="width: 90px; height: 90px; object-fit: cover; border: 3px solid #fff;">
+                        {% else %}
+                            <!-- 默认占位图 -->
+                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white"
+                                 style="width: 90px; height: 90px; font-size: 2rem;">
+                                ?
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 用户名与简介 (紧挨着头像) -->
+                    <div class="ms-4 flex-grow-1"> <!-- ms-4 增加左边距 -->
+                        <h2 class="mb-1 fw-bold text-dark">{{ profile_user.username }}</h2>
+                        <p class="text-muted mb-0 fst-italic small">
+                            {{ profile.bio|default:"暂无签名，快去编辑资料吧~" }}
+                        </p>
+                    </div>
+                </div>
+
+                <hr class="my-4 opacity-25">
+
+                <!-- 底部信息区域：注册时间 & 按钮 -->
+                <div class="d-flex justify-content-between align-items-center">
+                    <!-- 左侧：注册时间 -->
+                    <div class="small text-secondary">
+                        <i class="bi bi-calendar-event me-1"></i> <!-- 假设有Bootstrap Icons，没有的话删掉这行 -->
+                        注册于: {{ profile_user.date_joined|date:"Y年m月d日" }}
+                    </div>
+
+                    <!-- 右侧：编辑按钮 (仅本人可见) -->
+                    {% if is_me %}
+                        <a href="{% url 'main_app:edit_profile' %}" class="btn btn-outline-dark btn-sm px-3 rounded-pill">
+                            编辑资料
+                        </a>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 简单的内联样式，用于设置米白色背景 -->
+<style>
+    .custom-profile-card {
+        /* 米白色背景，你可以根据喜好微调颜色代码 */
+        background-color: #fcfbf7;
+        /* 也可以加一点点边框让它更有质感 */
+        border: 1px solid #eaeaea !important;
+    }
+</style>
+{% endblock %}
