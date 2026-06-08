@@ -574,6 +574,22 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+    // 3. 切换表情选择器
+    function toggleEmojiPicker(entryId) {
+        var picker = document.getElementById('emoji-picker-' + entryId);
+        if (picker) {
+            picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+
+    // 4. 添加表情到输入框
+    function addEmojiToTextarea(emoji, entryId) {
+        var textarea = document.querySelector(`#comment-box-${entryId} .comment-textarea`);
+        if (textarea) {
+            textarea.value += emoji;
+            textarea.focus();
+        }
+    }
 </script>
 
 {% endblock %}
