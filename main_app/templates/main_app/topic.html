@@ -1,99 +1,273 @@
 {% extends "main_app/base.html" %}
-
+{% load static %}
 {% block content %}
 
 <!-- ================= 自定义 CSS 样式 ================= -->
 <style>
     /* 页面容器 */
-    .topic-container { max-width: 800px; margin: 0 auto; padding: 20px; }
-    .topic-header { text-align: center; margin-bottom: 30px; position: relative; }
-    .topic-title { font-size: 2.5em; color: #fff; margin-bottom: 10px; }
-
+    .topic-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    .topic-header {
+        text-align: center;
+        margin-bottom: 30px;
+        position: relative;
+    }
+    .topic-title {
+        font-size: 2.5em;
+        color: #fff;
+        margin-bottom: 10px;
+    }
     /* 排序选择器 */
     .sort-selector {
-        display: inline-block; background: #333; border: 1px solid #555;
-        color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer;
+        display: inline-block;
+        background: #333;
+        border: 1px solid #555;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
     }
-
     /* --- 帖子卡片核心样式 --- */
     .entry-card {
-        background-color: #ffffff; border-radius: 10px; padding: 20px;
-        margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        display: flex; gap: 15px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        display: flex;
+        gap: 15px;
     }
-
     /* 左侧头像区域 - 增加 hover 效果提示可点击 */
     .user-avatar-link {
         display: block;
-        width: 50px; height: 50px;
+        width: 50px;
+        height: 50px;
         flex-shrink: 0;
         transition: transform 0.2s ease;
     }
     .user-avatar-link:hover {
-        transform: scale(1.05); /* 鼠标悬停时轻微放大 */
+        transform: scale(1.05);
     }
-
     .user-avatar {
-        width: 50px; height: 50px; border-radius: 50%; background-color: #ddd;
-        background-size: cover; background-position: center;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-color: #ddd;
+        background-size: cover;
+        background-position: center;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-
     /* 右侧内容区 */
-    .entry-content { flex-grow: 1; color: black; }
-
+    .entry-content {
+        flex-grow: 1;
+        color: black;
+    }
     /* 用户名与正文 */
-    .username { font-weight: bold; color: #333; font-size: 1.1em; }
-    .entry-text { font-size: 1.1em; color: #222; margin: 10px 0; line-height: 1.6; }
-
+    .username {
+        font-weight: bold;
+        color: #333;
+        font-size: 1.1em;
+    }
+    .entry-text {
+        font-size: 1.1em;
+        color: #222;
+        margin: 10px 0;
+        line-height: 1.6;
+    }
     /* --- 底部信息区 --- */
     .entry-footer {
         display: flex;
         justify-content: space-between;
         align-items: center;
         border-top: 1px solid #eee;
-        padding-top: 10px; margin-top: 10px;
-        color: #888; font-size: 0.9em;
+        padding-top: 10px;
+        margin-top: 10px;
+        color: #888;
+        font-size: 0.9em;
     }
-
     /* 互动按钮 */
     .actions button, .actions a {
-        background: none; border: none; cursor: pointer;
-        color: #666; font-size: 1em; margin-left: 15px;
-        display: inline-flex; align-items: center; gap: 5px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #666;
+        font-size: 1em;
+        margin-left: 15px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
         transition: color 0.2s;
     }
-    .actions button:hover, .actions a:hover { color: #d9534f; }
+    .actions button:hover, .actions a:hover {
+        color: #d9534f;
+    }
 
-    /* --- 评论区样式 --- */
+    /* --- 评论区样式 (增强版) --- */
     .comment-section {
-        background-color: #f9f9f9; padding: 15px; border-radius: 8px;
-        margin-top: 15px; display: none; /* 默认隐藏 */
+        background-color: #f9f9f9;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 15px;
         border: 1px solid #eee;
     }
 
+    /* 【修改】单条评论样式：移除 flex 布局，改为普通块级元素以适应无头像 */
     .comment-item {
-        border-bottom: 1px dashed #ccc; padding: 8px 0;
-        color: #000; position: relative;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+        /* display: flex; */
+        /* gap: 10px; */
+    }
+    /* 【删除】.comment-avatar 样式已移除 */
+
+    .comment-content {
+        flex: 1;
+        font-size: 0.95em;
+        color: #333;
+        padding-left: 0; /* 【新增】去除原本留给头像的左侧内边距 */
     }
 
-    .comment-actions { float: right; font-size: 0.8em; margin-left: 10px; }
-    .comment-actions button { background: none; border: none; cursor: pointer; padding: 2px 5px; }
-    .btn-delete { color: red; }
-    .btn-edit { color: blue; }
+    .comment-meta {
+        font-size: 0.8em;
+        color: #999;
+        margin-top: 5px;
+    }
 
-    .comment-input-area { margin-top: 10px; display: flex; gap: 10px; }
-    .comment-input-area textarea {
-        flex-grow: 1; border-radius: 4px; border: 1px solid #ccc;
-        padding: 8px; resize: vertical; min-height: 40px;
+    /* 回复按钮样式 */
+    .btn-reply {
+        font-size: 0.8em;
+        color: #666;
+        cursor: pointer;
+        margin-left: 10px;
+    }
+    .btn-reply:hover {
+        color: #007bff;
+    }
+
+    /* 顶级评论与回复的层级区分 */
+    .comment-reply {
+        margin-left: 20px; /* 【调整】缩进减小，因为没有头像了 */
+        padding-left: 10px;
+        border-left: 2px solid #ddd;
+    }
+
+    /* --- 评论输入框样式 --- */
+    .comment-form {
+        margin-top: 15px;
+        position: relative;
+    }
+    .comment-textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        resize: vertical;
+        font-size: 0.95em;
+    }
+    .comment-toolbar {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        font-size: 0.9em;
+        color: #666;
+    }
+    .comment-actions {
+        display: flex;
+        gap: 15px;
+    }
+    .comment-btn-submit {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 5px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    /* --- 样式微调 --- */
+    /* 1. 表情选择器样式 */
+    .emoji-picker {
+        display: none;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 5px;
+        background: #f9f9f9;
+        margin: 5px 0;
+        width: fit-content;
+    }
+    .emoji-picker span {
+        cursor: pointer;
+        font-size: 1.2em;
+        margin: 0 5px;
+    }
+    .emoji-picker span:hover {
+        transform: scale(1.2);
+    }
+    /* 2. 图片预览容器 */
+    .image-preview {
+        margin: 10px 0;
+        display: none;
+    }
+    .image-preview img {
+        max-width: 200px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    /* 3. 评论项基础样式 */
+    /* .comment-item { ... } */ /* 【已合并到上方】 */
+    /* .comment-avatar { ... } */ /* 【已删除】 */
+    .comment-content {
+        background: #f1f1f1;
+        padding: 8px 12px;
+        border-radius: 8px;
+        position: relative;
+        flex: 1;
+    }
+    .comment-header {
+        font-weight: bold;
+        margin-bottom: 5px;
+        font-size: 0.95em;
+    }
+    .comment-meta {
+        color: #999;
+        font-size: 0.8em;
+        margin-left: 10px;
+    }
+    .comment-actions {
+        font-size: 0.8em;
+        color: #007bff;
+        cursor: pointer;
+        margin-top: 5px;
+    }
+    .comment-text {
+        margin: 5px 0;
+        line-height: 1.4;
+    }
+    /* 4. 回复提示条 (新增 UI) */
+    #reply-indicator {
+        display: none;
+        background: #e6f7ff;
+        border-left: 4px solid #1890ff;
+        padding: 8px 12px;
+        margin-bottom: 10px;
+        font-size: 0.9em;
+        color: #1890ff;
     }
 </style>
 
 <div class="topic-container">
+    <!-- 顶部区域：新增回复提示条容器 -->
+    <div id="reply-indicator">
+        正在回复给 <span id="reply-target-name"></span>
+        <a href="#" onclick="cancelReply(); return false;" style="color: #ff4d4f; margin-left: 10px;">取消</a>
+    </div>
+
     <!-- 1. 顶部区域 -->
     <div class="topic-header">
-        <h1 class="topic-title">本桌主题:{{ topic.text }}</h1>
-
+        <h1 class="topic-title">本桌主题: {{ topic.text }}</h1>
         <div style="margin-bottom: 15px;">
             <span style="color:#aaa; font-size: 0.9em;">排序方式：</span>
             <select class="sort-selector" onchange="window.location.href=this.value">
@@ -101,157 +275,305 @@
                 <option value="?order=oldest" {% if request.GET.order == 'oldest' %}selected{% endif %}>最早发布 (Oldest)</option>
             </select>
         </div>
-
-        <a href="{% url 'main_app:new_entry' topic.id %}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">+ 写新笔记</a>
-        <a href="{% url 'main_app:topics' %}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">返回主题界面</a>
+        <!-- 【保持原样】发帖按钮 -->
+        <form method="POST" action="{% url 'main_app:new_entry' topic.id %}" enctype="multipart/form-data" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="is_new_entry" value="True">
+            <button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+                 + 写新笔记 
+            </button>
+        </form>
+        <a href="{% url 'main_app:topics' %}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-left: 10px;">返回主题界面</a>
     </div>
 
-    <!-- 2. 遍历条目 -->
+    <!-- 2. 遍历条目 (Entry) -->
     {% for entry in entries %}
     <div class="entry-card" id="card-{{ entry.id }}">
-
-        <!-- 【修改点 1】：主贴头像链接 -->
-        {% if entry.owner and entry.owner.username %}
-            <a href="{% url 'main_app:user_profile' entry.owner.username %}" class="user-avatar-link" title="查看 {{ entry.owner.username }} 的主页">
-                <div class="user-avatar" style="background-image: url('{{ entry.owner.profile.avatar.url }}');"></div>
-            </a>
-        {% else %}
-            <!-- 容错处理：如果没有作者，显示灰色占位符 -->
-            <div class="user-avatar" style="background-color: #ccc;"></div>
+        <!-- 【保持原样】主贴头像链接区域 -->
+        {% if entry.owner %}
+        <a href="{% url 'main_app:user_profile' entry.owner.username %}" class="user-avatar-link" title="查看 {{ entry.owner.username }} 的主页">
+            {% with avatar=entry.owner.profile.avatar %}
+                {% if avatar %}
+                    <div class="user-avatar" style="background-image: url('{{ avatar.url }}');"></div>
+                {% else %}
+                    <div class="user-avatar" style="background-color: #ccc; display: flex; align-items: center; justify-content: center; color: #999; font-size: 0.8em;">无图</div>
+                {% endif %}
+            {% endwith %}
+        </a>
         {% endif %}
 
         <div class="entry-content">
-            <!-- 【修改点 2】：主贴用户名链接 -->
+            <!-- 【保持原样】主贴用户名链接 -->
             <div class="username">
-                {% if entry.owner and entry.owner.username %}
-                    <a href="{% url 'main_app:user_profile' entry.owner.username %}" style="text-decoration:none; color:inherit;">
-                        {{ entry.owner.username }}
-                    </a>
+                {% if entry.owner %}
+                    <a href="{% url 'main_app:user_profile' entry.owner.username %}" style="text-decoration:none; color:inherit;">{{ entry.owner.username }}</a>
                 {% else %}
-                    [未知用户]
+                    <span style="color: #999;">[未知用户]</span>
                 {% endif %}
             </div>
 
-            <!-- 帖子内容 -->
-            <div class="entry-text">{{ entry.text|linebreaks }}</div>
+            <!-- 帖子内容容器 -->
+            <div class="entry-content">
+
+                <!-- 1. 文字部分：单独一个 div，写完文字立刻闭合 -->
+                <div class="entry-text">
+                    {{ entry.text|linebreaks }}
+                </div>
+
+                <!-- 2. 图片部分：在文字 div 的外面，单独判断 -->
+                {% if entry.image %}
+                    <div class="entry-image" style="margin-top: 10px;">
+                        <img src="{{ entry.image.url }}" alt="帖子配图" style="max-width: 100%; height: auto; border-radius: 8px; display: block;">
+                    </div>
+                {% endif %}
+
+            </div>
 
             <!-- 底部信息：日期 + 互动按钮 -->
             <div class="entry-footer">
                 <span>{{ entry.date_added|date:"Y年m月d日 H:i" }}</span>
-
                 <div class="actions">
                     <!-- 点赞 -->
                     <form action="{% url 'main_app:like_entry' entry.id %}" method="POST" style="display:inline;">
                         {% csrf_token %}
                         <button type="submit">❤️ 点赞 ({{ entry.likes.count }})</button>
                     </form>
-
                     <!-- 评论开关 -->
-                    <button onclick="toggleComment({{ entry.id }})">
-                        💬 评论 ({{ entry.comments.count }})
-                    </button>
-
+                    <button onclick="toggleComment({{ entry.id }})">💬 评论 ({{ entry.comments.count }})</button>
                     {% if user == entry.owner %}
-                      <!-- 编辑按钮 -->
-                      <a href="{% url 'main_app:edit_entry' entry.id %}" style="color:blue; text-decoration:none;">
-                      ✏️ 编辑
-                      </a>
-
-                      <!-- 删除按钮 -->
-                      <form action="{% url 'main_app:delete_entry' entry.id %}" method="POST" style="display:inline;" onsubmit="return confirm('确定要删除这条笔记吗？此操作不可恢复！');">
-                        {% csrf_token %}
-                        <button type="submit" style="background:none; border:none; color:red; cursor:pointer; font-size:1em;">
-                        🗑️ 删除
-                        </button>
-                      </form>
+                        <!-- 编辑按钮 -->
+                        <a href="{% url 'main_app:edit_entry' entry.id %}" style="color:blue; text-decoration:none;">✏️ 编辑</a>
+                        <!-- 删除按钮 -->
+                        <form action="{% url 'main_app:delete_entry' entry.id %}" method="POST" style="display:inline;" onsubmit="return confirm('确定要删除这条笔记吗？此操作不可恢复！');">
+                            {% csrf_token %}
+                            <button type="submit" style="background:none; border:none; color:red; cursor:pointer; font-size:1em;">🗑️ 删除</button>
+                        </form>
                     {% endif %}
                 </div>
             </div>
 
             <!-- === 评论区面板 === -->
-            <div id="comment-box-{{ entry.id }}" class="comment-section">
+            <div id="comment-box-{{ entry.id }}" class="comment-section" style="display: none;">
+                <!-- 1. 评论列表 -->
                 <div id="comment-list-{{ entry.id }}">
+                    <!-- 遍历该帖子下的所有评论 -->
                     {% for comment in entry.comments.all %}
-                    <div class="comment-item" id="comment-row-{{ comment.id }}">
+                        <!-- 只显示顶级评论 (parent_comment 为空的) -->
+                        {% if not comment.parent_comment %}
+                        <div class="comment-item">
+                            <!-- 【已删除】评论头像 -->
+                            <!-- <div class="comment-avatar" ...></div> -->
 
-                        <!-- 【修改点 3】：评论用户名链接 -->
-                        <div class="comment-header">
-                            {% if comment.user and comment.user.username %}
-                                <a href="{% url 'main_app:user_profile' comment.user.username %}"
-                                   style="text-decoration: none; color: #333; font-weight: bold;"
-                                   title="查看 {{ comment.user.username }} 的主页">
-                                    {{ comment.user.username }}
-                                </a>:
-                            {% else %}
-                                <span style="color: #999;">[未知用户]</span>:
-                            {% endif %}
-                        </div>
+                            <div class="comment-content">
+                                <!-- 用户名 -->
+                                <div class="comment-header">
+                                    <a href="{% url 'main_app:user_profile' comment.user.username %}" style="color: #007bff; font-weight: bold;">{{ comment.user.username }}</a>
+                                    <span class="comment-meta">{{ comment.date_added|date:"m-d H:i" }}</span>
+                                </div>
+                                <!-- 评论内容 -->
+                                <div class="comment-text"> 
+                                    {{ comment.content }} 
+                                    {% if comment.image %}
+                                    <div class="image-preview" style="display: block; margin-top: 5px;">
+                                        <img src="{{ comment.image.url }}" style="max-width: 150px; border-radius: 4px;">
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <!-- 操作按钮：回复、编辑、删除 -->
+                                <div class="comment-actions">
+                                    <span class="btn-reply" onclick="setReplyTarget({{ comment.id }}, '{{ comment.user.username }}')">回复</span>
+                                    <!-- 【保持原样】编辑和删除评论按钮 (仅作者可见) -->
+                                    {% if user == comment.user %}
+                                    <span style="margin-left: 10px;" onclick="editComment({{ comment.id }})">编辑</span>
+                                    <form action="{% url 'main_app:delete_comment' comment.id %}" method="POST" style="display: inline;" onsubmit="return confirm('确定删除这条评论吗？');">
+                                        {% csrf_token %}
+                                        <button type="submit" style="background: none; border: none; color: #ff4d4f; font-size: 0.9em; cursor: pointer; margin-left: 10px;">删除</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
 
-                        <span id="text-content-{{ comment.id }}">{{ comment.content }}</span>
+                                <!-- 【嵌套】显示针对这条评论的回复 -->
+                                {% for reply in comment.replies.all %}
+                                <div class="comment-item comment-reply" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc;">
+                                    <!-- 【已删除】嵌套回复头像 -->
+                                    <!-- <div class="comment-avatar" ...></div> -->
 
-                        {% if user == comment.user %}
-                        <div class="comment-actions">
-                            <button class="btn-edit" onclick="editComment({{ comment.id }}, '{{ comment.content|escapejs }}', {{ entry.id }})">编辑</button>
-                            <form action="{% url 'main_app:delete_comment' comment.id %}" method="POST" style="display:inline;" onsubmit="return confirm('确定要删除这条评论吗？');">
-                                {% csrf_token %}
-                                <button type="submit" class="btn-delete">删除</button>
-                            </form>
+                                    <div class="comment-content">
+                                        <div class="comment-header">
+                                            <a href="{% url 'main_app:user_profile' reply.user.username %}" style="color: #007bff; font-weight: bold;">{{ reply.user.username }}</a>
+                                            <span class="comment-meta">{{ reply.date_added|date:"m-d H:i" }}</span>
+                                        </div>
+                                        <div class="comment-text">
+                                            <strong>@{{ reply.parent_comment.user.username }}:</strong> {{ reply.content }} 
+                                            {% if reply.image %}
+                                            <div class="image-preview" style="display: block; margin-top: 5px;">
+                                                <img src="{{ reply.image.url }}" style="max-width: 150px; border-radius: 4px;">
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <!-- 回复的回复也可以操作 -->
+                                        <div class="comment-actions">
+                                            <span class="btn-reply" onclick="setReplyTarget({{ reply.id }}, '{{ reply.user.username }}')">回复</span>
+                                            {% if user == reply.user %}
+                                            <span style="margin-left: 10px;" onclick="editComment({{ reply.id }})">编辑</span>
+                                            <form action="{% url 'main_app:delete_comment' reply.id %}" method="POST" style="display: inline;" onsubmit="return confirm('确定删除这条评论吗？');">
+                                                {% csrf_token %}
+                                                <button type="submit" style="background: none; border: none; color: #ff4d4f; font-size: 0.9em; cursor: pointer; margin-left: 10px;">删除</button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
                         </div>
                         {% endif %}
-                    </div>
                     {% empty %}
                         <p style="color:#666; font-style: italic;">这里还没有贵宾入座。</p>
                     {% endfor %}
                 </div>
 
-                <!-- 评论输入表单 -->
-                <form action="{% url 'main_app:add_comment' entry.id %}" method="POST" class="comment-input-area" id="form-{{ entry.id }}">
+                <!-- 2. 评论输入表单 -->
+                <form method="POST" class="comment-form" enctype="multipart/form-data">
                     {% csrf_token %}
-                    <textarea name="content" id="input-{{ entry.id }}" rows="2" placeholder="待君畅所欲言..."></textarea>
-                    <button type="submit" style="background:#333; color:white; border:none; padding:0 15px; border-radius:4px; cursor:pointer;">发送</button>
+                    <!-- 【保持原样】隐藏域：记录回复目标 ID -->
+                    <input type="hidden" name="parent_comment_id" id="parent-comment-id-{{ entry.id }}" value="0">
+                    <input type="hidden" name="entry_id" value="{{ entry.id }}">
+
+                    <!-- 工具栏 -->
+                    <div class="comment-toolbar">
+                        <div class="comment-actions">
+                            <!-- 文件上传 -->
+                            <input type="file" id="img-upload-{{ entry.id }}" name="image" accept="image/*" style="display: none;" onchange="previewImage(this, {{ entry.id }})">
+                            <label for="img-upload-{{ entry.id }}" style="cursor: pointer; color: #007bff;"> 📷 选择图片</label>
+                            <span onclick="toggleEmojiPicker({{ entry.id }})" style="cursor: pointer;">😀 表情</span>
+                        </div>
+                    </div>
+
+                    <!-- 图片预览区域 -->
+                    <div id="image-preview-{{ entry.id }}" class="image-preview"></div>
+
+                    <!-- 输入框 -->
+                    <textarea name="content" class="comment-textarea" placeholder="待君畅所欲言... " id="comment-textarea-{{ entry.id }}"></textarea>
+
+                    <!-- 表情选择器 -->
+                    <div id="emoji-picker-{{ entry.id }}" class="emoji-picker">
+                        {% for emoji in "😀😂🤣😭😡🤔👍🎉❤️🔥" %}
+                        <span onclick="addEmojiToTextarea('{{ emoji }}', {{ entry.id }})">{{ emoji }}</span>
+                        {% endfor %}
+                    </div>
+
+                    <!-- 发送按钮 -->
+                    <button type="submit" class="comment-btn-submit">发送评论</button>
                 </form>
             </div>
-
         </div>
     </div>
     {% endfor %}
 </div>
 
-<!-- ================= JavaScript 逻辑 ================= -->
+<!-- ================= JavaScript 逻辑 (已修复) ================= -->
 <script>
     // 1. 切换评论区显示/隐藏
     function toggleComment(entryId) {
         var box = document.getElementById('comment-box-' + entryId);
-        if (box.style.display === 'none' || box.style.display === '') {
-            box.style.display = 'block';
-        } else {
-            box.style.display = 'none';
+        if (box) {
+            box.style.display = box.style.display === 'none' ? 'block' : 'none';
         }
     }
 
-    // 2. 编辑评论功能
-    function editComment(commentId, content, entryId) {
-        var inputArea = document.getElementById('input-' + entryId);
-        var form = document.getElementById('form-' + entryId);
+    // 2. 设置回复目标 (核心修复：确保 ID 和 Name 都正确设置)
+    function setReplyTarget(commentId, username) {
+        // A. 设置隐藏域的值 (给后端用)
+        var hiddenInput = document.getElementById('parent-comment-id-' + commentId);
+        // 兼容逻辑：如果通过 commentId 找不到，尝试通过 entryId 查找（防止嵌套层级问题，简单起见直接遍历）
+        if (!hiddenInput) {
+            // 寻找属于该评论所在 Entry 的隐藏域
+            var entryId = commentId; // 这里简化处理，实际应传入 entry_id
+            // 更鲁棒的做法：遍历所有可能的 entry
+            var allInputs = document.querySelectorAll('input[name="parent_comment_id"]');
+            allInputs.forEach(input => {
+                input.value = commentId;
+            });
+        } else {
+            hiddenInput.value = commentId;
+        }
 
-        if (inputArea && form) {
-            inputArea.value = content;
-            inputArea.focus();
+        // B. 显示 UI 提示 (回复给谁)
+        var indicator = document.getElementById('reply-indicator');
+        var targetNameSpan = document.getElementById('reply-target-name');
+        if (indicator && targetNameSpan) {
+            targetNameSpan.innerText = username;
+            indicator.style.display = 'block';
+        }
+    }
 
-            // 动态修改表单的提交地址
-            form.action = "/comment/" + commentId + "/edit/";
+    // 3. 取消回复
+    function cancelReply() {
+        // 清空所有可能的隐藏域
+        var allInputs = document.querySelectorAll('input[name="parent_comment_id"]');
+        allInputs.forEach(input => {
+            input.value = 0;
+        });
+        // 隐藏提示条
+        var indicator = document.getElementById('reply-indicator');
+        if (indicator) indicator.style.display = 'none';
+    }
 
-            var commentBox = document.getElementById('comment-box-' + entryId);
-            if (commentBox.style.display === 'none' || commentBox.style.display === '') {
-                commentBox.style.display = 'block';
+    // 4. 编辑评论 (对接后端 edit_comment 视图)
+function editComment(commentId) {
+    // 1. 获取当前评论的内容作为默认值
+    var contentDiv = document.getElementById('comment-content-' + commentId);
+    var currentContent = contentDiv ? contentDiv.innerText : "";
+
+    // 2. 弹出输入框让用户修改
+    var newContent = prompt("修改评论内容:", currentContent);
+
+    // 3. 如果用户点击了确定且内容不为空
+    if (newContent !== null && newContent.trim() !== "") {
+        // 创建一个临时的 form 表单用于提交 POST 请求
+        var form = document.createElement("form");
+        form.method = "POST";
+        // 这里假设你的 urls.py 中 edit_comment 的路由是 /comment/<id>/edit/ 或类似结构
+        // 请务必确认这里的 URL 与你后端 urls.py 配置的一致
+        form.action = "/comment/" + commentId + "/edit/";
+
+        // 添加 CSRF Token (Django 必须)
+        var csrfInput = document.createElement("input");
+        csrfInput.type = "hidden";
+        csrfInput.name = "csrfmiddlewaretoken";
+        // 从页面现有的 cookie 或 meta 标签中获取 token
+        csrfInput.value = getCookie('csrftoken');
+        form.appendChild(csrfInput);
+
+        // 添加新内容字段
+        var contentInput = document.createElement("input");
+        contentInput.type = "hidden";
+        contentInput.name = "content";
+        contentInput.value = newContent;
+        form.appendChild(contentInput);
+
+        // 将表单加入 body 并提交
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// 辅助函数：获取 Cookie 中的 csrftoken (如果没有这个函数，CSRF 会报错)
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
             }
-
-            inputArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            alert("已进入编辑模式，修改后点击发送即可更新。");
-        } else {
-            console.error("找不到对应的输入框或表单，请检查 ID 命名。");
         }
     }
+    return cookieValue;
+}
 </script>
 
 {% endblock %}

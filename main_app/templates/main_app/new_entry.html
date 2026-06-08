@@ -2,116 +2,74 @@
 
 {% block content %}
 
-<!-- ================= 页面专用 CSS (强制覆盖 base.html) ================= -->
+<!-- ================= 页面专用 CSS ================= -->
 <style>
-    /* 1. 外层容器：居中并留出呼吸感 */
-    .new-entry-wrapper {
-        max-width: 800px !important;
-        margin: 50px auto !important;
-        padding: 20px;
-        box-sizing: border-box;
-    }
+    /* ... 保留你原来的 .new-entry-wrapper 和 .entry-card 样式 ... */
+    .new-entry-wrapper { max-width: 800px !important; margin: 50px auto !important; padding: 20px; box-sizing: border-box; }
+    .entry-card { background-color: #ffffff !important; border-radius: 12px !important; padding: 40px !important; box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important; color: #333; }
+    .page-header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+    .page-title { font-size: 1.8em; color: #2c3e50; margin: 0 0 10px 0; font-weight: bold; }
+    .back-link { color: #666; text-decoration: none; font-size: 0.9em; transition: color 0.2s; }
+    .back-link:hover { color: #4CAF50; }
 
-    /* 2. 核心卡片样式：白底、圆角、阴影 */
-    .entry-card {
-        background-color: #ffffff !important;
-        border-radius: 12px !important;
-        padding: 40px !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important; /* 更高级的阴影 */
-        color: #333;
-    }
-
-    /* 3. 标题区域美化 */
-    .page-header {
-        text-align: center;
-        margin-bottom: 30px;
-        border-bottom: 1px solid #eee;
-        padding-bottom: 20px;
-    }
-
-    .page-title {
-        font-size: 1.8em;
-        color: #2c3e50;
-        margin: 0 0 10px 0;
-        font-weight: bold;
-    }
-
-    .back-link {
-        color: #666;
-        text-decoration: none;
+    /* 【新增】美化报错信息 */
+    ul.errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 15px 0;
+        color: #d9534f;
+        background: #fdf7f7;
+        border: 1px solid #ebccd1;
+        padding: 10px;
+        border-radius: 4px;
         font-size: 0.9em;
-        transition: color 0.2s;
-    }
-    .back-link:hover {
-        color: #4CAF50; /* 悬停变绿 */
     }
 
-    /* 4. 表单样式优化 (对抗 Django 默认样式) */
-    form p {
-        margin-bottom: 20px;
-    }
+    /* 表单容器 */
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
 
-    /* 针对 Django 生成的 label */
-    form label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: bold;
-        color: #555;
-    }
-
-    /* 针对 Django 生成的 input/textarea */
-    form input[type="text"],
-    form textarea,
-    form select {
+    /* 输入框通用样式 */
+    textarea, input[type="file"] {
         width: 100% !important;
         padding: 12px !important;
         border: 1px solid #ddd !important;
         border-radius: 6px !important;
         font-size: 1em;
-        box-sizing: border-box; /* 防止宽度溢出 */
-        transition: border-color 0.3s;
+        box-sizing: border-box;
     }
+    textarea:focus { border-color: #4CAF50 !important; outline: none; }
 
-    /* 输入框聚焦效果 */
-    form input:focus,
-    form textarea:focus {
-        border-color: #4CAF50 !important;
-        outline: none;
-        box-shadow: 0 0 5px rgba(76, 175, 80, 0.2);
+    /* 表情包工具栏 */
+    .emoji-toolbar {
+        margin-bottom: 5px;
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
     }
-
-    /* 帮助文本 (Help text) */
-    .helptext {
-        display: block;
-        font-size: 0.8em;
-        color: #888;
-        margin-top: 5px;
-    }
-
-    /* 5. 提交按钮美化 */
-    .submit-btn {
-        display: block;
-        width: 100%;
-        background-color: #4CAF50;
-        color: white;
-        padding: 12px;
-        border: none;
-        border-radius: 6px;
-        font-size: 1.1em;
+    .emoji-btn {
+        background: #f0f0f0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
         cursor: pointer;
-        transition: background-color 0.2s;
-        margin-top: 10px;
+        padding: 5px 10px;
+        font-size: 1.2em;
+        transition: background 0.2s;
     }
+    .emoji-btn:hover { background: #e0e0e0; }
 
-    .submit-btn:hover {
-        background-color: #45a049;
+    /* 提交按钮 */
+    .submit-btn {
+        display: block; width: 100%; background-color: #4CAF50; color: white;
+        padding: 12px; border: none; border-radius: 6px; font-size: 1.1em;
+        cursor: pointer; transition: background-color 0.2s; margin-top: 20px;
     }
+    .submit-btn:hover { background-color: #45a049; }
 </style>
 
 <div class="new-entry-wrapper">
     <div class="entry-card">
 
-        <!-- 头部：标题 + 返回链接 -->
         <div class="page-header">
             <h1 class="page-title">添加新笔记</h1>
             <p style="margin:0;">
@@ -119,17 +77,58 @@
             </p>
         </div>
 
-        <!-- 表单区域 -->
-        <form action="{% url 'main_app:new_entry' topic.id %}" method='post'>
+        <!-- 【重要】上传文件必须加 enctype="multipart/form-data" -->
+        <form action="{% url 'main_app:new_entry' topic.id %}" method='post' enctype="multipart/form-data">
             {% csrf_token %}
 
-            <!-- 这里直接渲染表单，CSS 会自动美化它 -->
-            {{ form.as_p }}
+            <!-- 1. 文本输入区域 -->
+            <div class="form-group">
+                <!-- 简单的表情包工具栏 -->
+                <div class="emoji-toolbar">
+                    <button type="button" class="emoji-btn" onclick="addEmoji('😀')">😀</button>
+                    <button type="button" class="emoji-btn" onclick="addEmoji('😂')">😂</button>
+                    <button type="button" class="emoji-btn" onclick="addEmoji('🤔')">🤔</button>
+                    <button type="button" class="emoji-btn" onclick="addEmoji('👍')">👍</button>
+                    <button type="button" class="emoji-btn" onclick="addEmoji('❤️')">❤️</button>
+                    <button type="button" class="emoji-btn" onclick="addEmoji('🎉')">🎉</button>
+                </div>
+
+                <!-- 直接渲染 text 字段，不再用 as_p -->
+                {{ form.text }}
+                <!-- 显示 text 字段的特定报错 -->
+                {% if form.text.errors %}
+                    {{ form.text.errors }}
+                {% endif %}
+            </div>
+
+            <!-- 2. 图片上传区域 -->
+            <div class="form-group">
+                <label for="{{ form.image.id_for_label }}">上传图片 (可选)</label>
+                {{ form.image }}
+                {% if form.image.errors %}
+                    {{ form.image.errors }}
+                {% endif %}
+                <small class="helptext">支持 jpg, png 格式</small>
+            </div>
 
             <button type="submit" class="submit-btn">保存笔记</button>
         </form>
 
     </div>
 </div>
+
+<script>
+    // 简单的 JS：点击表情按钮，将表情插入到文本框光标处
+    function addEmoji(emoji) {
+        var textarea = document.getElementById('{{ form.text.id_for_label }}');
+        var startPos = textarea.selectionStart;
+        var endPos = textarea.selectionEnd;
+        textarea.value = textarea.value.substring(0, startPos)
+            + emoji
+            + textarea.value.substring(endPos, textarea.value.length);
+        textarea.focus();
+        textarea.selectionEnd = startPos + emoji.length;
+    }
+</script>
 
 {% endblock content %}

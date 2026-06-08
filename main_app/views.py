@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import Http404 
+from django.http import Http404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from .models import Topic, Entry, Comment, Like
@@ -19,19 +19,46 @@ def topics(request):
     context = {'topics': topics}
     return render(request, 'main_app/topics.html', context)
 
-# views.py 示例片段
 def topic(request, topic_id):
-    topic = Topic.objects.get(id=topic_id)
+    """显示特定主题下的所有条目及其评论"""
+    topic = get_object_or_404(Topic, id=topic_id)
 
-    # 获取排序参数，默认为 '-date_added' (最新在前)
+    # 1. 获取排序参数
     order = request.GET.get('order', 'newest')
-
     if order == 'oldest':
         entries = topic.entry_set.order_by('date_added')
     else:
         entries = topic.entry_set.order_by('-date_added')
 
-    context = {'topic': topic, 'entries': entries}
+    # 2. 【新增】处理评论提交逻辑 (支持图片 + 回复)
+    if request.method == 'POST' and 'content' in request.POST:
+        content = request.POST.get('content')
+        entry_id = request.POST.get('entry_id')
+        parent_id = request.POST.get('parent_comment_id')
+
+        if content and entry_id:
+            target_entry = get_object_or_404(Entry, id=entry_id)
+            parent_comment = None
+
+            if parent_id:
+                try:
+                    parent_comment = Comment.objects.get(id=parent_id)
+                except Comment.DoesNotExist:
+                    pass
+
+            new_comment = Comment.objects.create(
+                entry=target_entry,
+                user=request.user,
+                content=content,
+                parent_comment=parent_comment,
+                image=request.FILES.get('image') # 接收上传的图片
+            )
+            return redirect('main_app:topic', topic_id=topic_id)
+
+    context = {
+        'topic': topic,
+        'entries': entries,
+    }
     return render(request, 'main_app/topic.html', context)
 
 def new_topic(request):
@@ -48,39 +75,41 @@ def new_topic(request):
     return render(request, 'main_app/new_topic.html', context)
 
 def new_entry(request, topic_id):
-    """添加新条目"""
     topic = get_object_or_404(Topic, id=topic_id)
 
     if request.method != 'POST':
         form = EntryForm()
     else:
-        form = EntryForm(data=request.POST)
+        # 【关键修复】必须传入 request.FILES 才能处理图片
+        form = EntryForm(data=request.POST, files=request.FILES)
+
         if form.is_valid():
             new_entry = form.save(commit=False)
             new_entry.topic = topic
-            new_entry.owner = request.user      # 关联当前用户
+            new_entry.owner = request.user
             new_entry.save()
             return redirect('main_app:topic', topic_id=topic_id)
 
     context = {'topic': topic, 'form': form}
     return render(request, 'main_app/new_entry.html', context)
-    # 【修复2】删除了原本在这里重复的死代码
 
 def edit_entry(request, entry_id):
     entry = get_object_or_404(Entry, id=entry_id)
     topic = entry.topic
 
-    # 确保只有作者本人能编辑
     if entry.owner != request.user:
         raise Http404
 
     if request.method != 'POST':
         form = EntryForm(instance=entry)
     else:
-        form = EntryForm(instance=entry, data=request.POST)
+        # 【重要修复】编辑时必须也要传入 files=request.FILES
+        # 否则如果用户没重新选图，可能会出问题；如果选了图，不加这个也存不上
+        form = EntryForm(instance=entry, data=request.POST, files=request.FILES)
+
         if form.is_valid():
-          form.save()
-          return redirect('main_app:topic', topic_id=topic.id)
+            form.save()
+            return redirect('main_app:topic', topic_id=topic.id)
 
     context = {'entry': entry, 'topic': topic, 'form': form}
     return render(request, 'main_app/edit_entry.html', context)
@@ -90,19 +119,28 @@ def add_comment(request, entry_id):
     entry = get_object_or_404(Entry, id=entry_id)
 
     if request.method == 'POST':
-        # 【修复3】请务必检查你的 HTML 模板，input 或 textarea 的 name 属性必须也是 'content'
-        # 如果你的 HTML 里写的是 name="text"，那这里就要改成 request.POST.get('text')
         content = request.POST.get('content')
+        uploaded_image = request.FILES.get('image')
+        parent_id = request.POST.get('parent_comment_id')
 
-        if content:
+        if content or uploaded_image:
+            parent_comment = None
+
+            if parent_id and parent_id != '0':
+                try:
+                    parent_comment = Comment.objects.get(id=parent_id, entry=entry)
+                except Comment.DoesNotExist:
+                    parent_comment = None
+
             Comment.objects.create(
                 entry=entry,
                 user=request.user,
-                content=content # 确保 models.py 里 Comment 也有 content 字段
+                content=content,
+                image=uploaded_image,      # 【修复】修正了之前的拼写错误
+                parent_comment=parent_comment
             )
 
-    return redirect('main_app:topic', topic_id=entry.topic.id)
-
+    return redirect('main_app:topic', topic_id=entry.topic_id)
 
 @login_required
 def like_entry(request, entry_id):
@@ -110,36 +148,28 @@ def like_entry(request, entry_id):
         entry = get_object_or_404(Entry, id=entry_id)
         user = request.user
 
-        # 1. 尝试查找当前用户是否已经点赞过这条帖子
         like_obj = Like.objects.filter(entry=entry, user=user).first()
 
         if like_obj:
-            # 2. 如果找到了，说明是“取消点赞”，直接删除这条记录
             like_obj.delete()
         else:
-            # 3. 如果没找到，说明是“新点赞”，创建一条新的 Like 记录
             Like.objects.create(entry=entry, user=user)
 
-    # 4. 处理完回到原来的话题页面
     return redirect('main_app:topic', topic_id=entry.topic.id)
 
-# 删除评论
 @login_required
 def delete_comment(request, comment_id):
     comment = get_object_or_404(Comment, id=comment_id)
-    # 安全检查：只有评论作者或帖子作者才能删除
     if request.user == comment.user or request.user == comment.entry.owner:
         topic_id = comment.entry.topic.id
         comment.delete()
         return redirect('main_app:topic', topic_id=topic_id)
     return redirect('main_app:topic', topic_id=comment.entry.topic.id)
 
-# 编辑评论 (简单版：直接提交新内容)
 @login_required
 def edit_comment(request, comment_id):
     comment = get_object_or_404(Comment, id=comment_id)
     if request.method == 'POST':
-        # 安全检查
         if request.user == comment.user:
             new_content = request.POST.get('content')
             if new_content:
@@ -152,7 +182,6 @@ def delete_entry(request, entry_id):
     entry = get_object_or_404(Entry, id=entry_id)
     topic = entry.topic
 
-    # 安全检查：只有作者能删
     if entry.owner != request.user:
         raise Http404
 
@@ -160,35 +189,26 @@ def delete_entry(request, entry_id):
         entry.delete()
         return redirect('main_app:topic', topic_id=topic.id)
 
-    # 如果是 GET 请求，可以显示一个确认页面，或者直接重定向回列表
     return redirect('main_app:topic', topic_id=topic.id)
 
-# 1. 个人主页视图
 def user_profile(request, username):
-    # 获取用户对象，如果不存在报404
     user_obj = get_object_or_404(User, username=username)
-
-    # 获取该用户的Profile，如果没有则创建一个空的（防止报错）
     profile, created = UserProfile.objects.get_or_create(user=user_obj)
-
-    # 获取该用户发布的所有话题，按时间倒序
     topics = user_obj.topics.all().order_by('-date_added')
 
     context = {
         'profile_user': user_obj,
         'profile': profile,
         'topics': topics,
-        'is_me': request.user == user_obj  # 判断是不是本人访问
+        'is_me': request.user == user_obj
     }
     return render(request, 'main_app/profile.html', context)
 
-# 2. 编辑资料视图（仅登录用户可访问）
 @login_required
 def edit_profile(request):
     profile, created = UserProfile.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
-        # 处理表单提交（这里简化处理，实际建议用Form类）
         bio = request.POST.get('bio')
         avatar = request.FILES.get('avatar')
 
@@ -198,7 +218,6 @@ def edit_profile(request):
             profile.avatar = avatar
 
         profile.save()
-        # 注意前面的 main_app:
         return redirect('main_app:user_profile', username=request.user.username)
 
     return render(request, 'main_app/edit_profile.html', {'profile': profile})

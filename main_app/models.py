@@ -18,6 +18,7 @@ class Entry(models.Model):
 
     text = models.TextField()
     date_added = models.DateTimeField(auto_now_add=True)
+    image = models.ImageField(upload_to='entry_images/', blank=True, null=True)
 
     class Meta:
         verbose_name_plural = 'entries'
@@ -31,6 +32,10 @@ class Comment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    # 【新增 1】用于存储上传的图片 (可选)
+    image = models.ImageField(upload_to='comment_images/', blank=True, null=True)
+    # 【新增 2】用于实现“回复”功能 (自关联，指向另一条评论)
+    parent_comment = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
 
     def __str__(self):
         return f"Comment by {self.user.username}"

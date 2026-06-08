@@ -2,7 +2,6 @@
 
 {% block content %}
 
-<!-- ================= 页面专用 CSS (加强版) ================= -->
 <style>
     /* 1. 强制重置外层容器，确保能居中 */
     .edit-page-wrapper {
@@ -42,7 +41,7 @@
     }
     .back-link:hover { color: #4CAF50; }
 
-    /* 5. 【关键】强制重写表单元素样式，对抗 base.html */
+    /* 5. 强制重写表单元素样式，对抗 base.html */
     .edit-form textarea {
         width: 100% !important;
         min-height: 200px !important;
@@ -109,9 +108,6 @@
         <form action="{% url 'main_app:edit_entry' entry.id %}" method="post" class="edit-form clearfix">
             {% csrf_token %}
 
-            <!-- Django 表单渲染 -->
-            <!-- 注意：这里直接渲染 form.as_p 可能会带上 base.html 的某些 p 标签样式 -->
-            <!-- 如果 as_p 还是很丑，建议手动渲染字段，见下方注释 -->
             {{ form.as_p }}
 
             <button type="submit" name="submit" class="btn-save">保存更改</button>
