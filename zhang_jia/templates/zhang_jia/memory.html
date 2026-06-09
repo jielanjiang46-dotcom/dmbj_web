@@ -1,0 +1,380 @@
+{% extends "main_app/base.html" %}
+{% load static %}
+
+{% block title %}张家记忆训练{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 核心样式区 --- */
+    #game-wrapper {
+        width: 100%;
+        height: 90vh; /* 稍微增加高度利用率 */
+        background-color: #1a1a1a !important;
+        color: #ffffff !important;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px;
+        box-sizing: border-box;
+        font-family: 'Arial', sans-serif;
+        overflow-y: auto; /* 【关键修改】允许垂直滚动，防止内容被切掉 */
+        position: relative;
+    }
+
+    h1 {
+        font-size: 1.4rem;
+        margin: 5px 0 15px 0; /* 增加底部间距 */
+        text-align: center;
+        flex-shrink: 0; /* 防止标题被压缩 */
+    }
+
+    /* 难度选择与规则区域 */
+    .controls-area {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        z-index: 10;
+        flex-shrink: 0;
+    }
+
+    .difficulty-btns {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        background: #333;
+        border: 1px solid #555;
+        color: white;
+        padding: 8px 16px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+    }
+
+    .btn:hover {
+        background: #555;
+        border-color: #777;
+    }
+
+    .btn.active {
+        background: #d4af37;
+        color: black;
+        border-color: #d4af37;
+        font-weight: bold;
+    }
+
+    .rules-toggle {
+        font-size: 0.8rem;
+        color: #aaa;
+        text-decoration: underline;
+        cursor: pointer;
+        margin-top: 5px;
+    }
+
+    /* 游戏规则弹窗 */
+    #rules-modal {
+        display: none;
+        position: fixed; /* 改为 fixed 定位，防止随页面滚动 */
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #2a2a2a;
+        padding: 20px;
+        border: 1px solid #444;
+        border-radius: 8px;
+        width: 80%;
+        max-width: 300px;
+        text-align: center;
+        z-index: 1000;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+    }
+
+    #rules-modal p {
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-bottom: 15px;
+    }
+
+    /* 顶部状态栏 (步数 + 返回) */
+    .status-bar {
+        width: 100%;
+        max-width: 600px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 5px 10px;
+        background: #252525; /* 加个背景色让它更明显 */
+        border-radius: 4px;
+        font-size: 0.9rem;
+        color: #ccc;
+        flex-shrink: 0; /* 【关键】防止状态栏被压缩 */
+    }
+
+    /* 游戏网格容器 */
+    .grid-container {
+        display: grid;
+        gap: 8px;
+        width: 100%;
+        max-width: 600px; /* 限制最大宽度，防止在大屏上太宽 */
+        margin: 0 auto;
+        /* 这里的 min-height 保证即使没卡片也有占位 */
+        min-height: 200px;
+        /* 自动适应内容，不再强制 flex-grow */
+    }
+
+    /* 卡牌样式 */
+    .card {
+        background-color: transparent;
+        perspective: 1000px;
+        cursor: pointer;
+        aspect-ratio: 3/4; /* 【调整】卡牌改为长方形，更适合 4x5 布局，如果想正方形改回 1/1 */
+        position: relative;
+        width: 100%; /* 填满格子 */
+    }
+
+    .card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+        border-radius: 6px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    .card.flipped .card-inner {
+        transform: rotateY(180deg);
+    }
+
+    .card.matched {
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    .card-front, .card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        font-size: 1.5rem;
+        user-select: none;
+    }
+
+    .card-front {
+        background: linear-gradient(135deg, #2c3e50, #000000);
+        color: #d4af37;
+        font-size: 1.2rem;
+        font-weight: bold;
+        border: 1px solid #444;
+    }
+
+    .card-back {
+        background-color: #fff;
+        color: #333;
+        transform: rotateY(180deg);
+    }
+</style>
+
+<div id="game-wrapper">
+    {% csrf_token %}
+    <h1>张家记忆训练系统</h1>
+
+    <!-- 难度选择与规则区 -->
+    <div class="controls-area" id="controls-area">
+        <div class="difficulty-btns">
+            <!-- 注意：这里传参改为 (行, 列) -->
+            <button class="btn" onclick="startGame(4, 4)">简单 (4x4)</button>
+            <button class="btn" onclick="startGame(4, 5)">中等 (4x5)</button>
+            <button class="btn" onclick="startGame(6, 6)">困难 (6x6)</button>
+        </div>
+        <div class="rules-toggle" onclick="toggleRules()">查看规则说明</div>
+    </div>
+
+    <!-- 规则弹窗 -->
+    <div id="rules-modal">
+        <p><strong>游戏规则：</strong><br>点击下方按钮选择难度。<br>每次翻两张牌，图案相同则消除。<br>目标是用最少的步数完成配对！</p>
+        <button class="btn" onclick="toggleRules()">关闭</button>
+    </div>
+
+    <!-- 游戏进行中状态栏 -->
+    <div class="status-bar" id="status-bar" style="display:none;">
+        <span>步数: <span id="step-count">0</span></span>
+        <button class="btn" onclick="location.reload()" style="padding: 2px 8px; font-size: 0.8rem;">返回菜单</button>
+    </div>
+
+    <!-- 游戏网格 -->
+    <div class="grid-container" id="grid"></div>
+</div>
+
+<script>
+    // 游戏配置
+    const emojis = ['⚔️', '🛡️', '📜', '🗝️', '🏺', '🐉', '🌲', '❄️', '🔥', '⛰️', '🌙', '☀️', '👁️', '🧬', '🕸️', '🕯️', '🪦'];
+    let cards = [];
+    let hasFlippedCard = false;
+    let lockBoard = false;
+    let firstCard, secondCard;
+    let steps = 0;
+    let matchedPairs = 0;
+    let totalPairs = 0;
+
+    function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+    function toggleRules() {
+        const modal = document.getElementById('rules-modal');
+        modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+    }
+
+    // 【核心修改】接收 rows 和 cols 两个参数
+    function startGame(rows, cols) {
+        // 1. 界面切换
+        document.getElementById('controls-area').style.display = 'none';
+        document.getElementById('status-bar').style.display = 'flex';
+
+        // 2. 设置网格列数 (这是解决你截图中“排成一排”的关键)
+        const grid = document.getElementById('grid');
+        grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+        // 3. 准备数据
+        const totalCards = rows * cols;
+        totalPairs = totalCards / 2;
+        matchedPairs = 0;
+        steps = 0;
+        document.getElementById('step-count').innerText = steps;
+
+        // 4. 生成卡牌数组
+        // 如果需要的对子超过了 emoji 库的长度，就循环使用
+        let gameEmojis = [];
+        for(let i=0; i<totalPairs; i++) {
+            gameEmojis.push(emojis[i % emojis.length]);
+        }
+
+        cards = [...gameEmojis, ...gameEmojis];
+        cards.sort(() => 0.5 - Math.random()); // 洗牌
+
+        // 5. 渲染网格
+        grid.innerHTML = '';
+        cards.forEach(emoji => {
+            const cardElement = createCard(emoji);
+            grid.appendChild(cardElement);
+        });
+    }
+
+    function createCard(emoji) {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.dataset.emoji = emoji;
+
+        card.innerHTML = `
+            <div class="card-inner">
+                <div class="card-front">?</div>
+                <div class="card-back">${emoji}</div>
+            </div>
+        `;
+
+        card.addEventListener('click', flipCard);
+        return card;
+    }
+
+    function flipCard() {
+        if (lockBoard) return;
+        if (this === firstCard) return;
+
+        this.classList.add('flipped');
+
+        if (!hasFlippedCard) {
+            hasFlippedCard = true;
+            firstCard = this;
+            return;
+        }
+
+        secondCard = this;
+        incrementSteps();
+        checkForMatch();
+    }
+
+    function incrementSteps() {
+        steps++;
+        document.getElementById('step-count').innerText = steps;
+    }
+
+    function checkForMatch() {
+        let isMatch = firstCard.dataset.emoji === secondCard.dataset.emoji;
+        isMatch ? disableCards() : unflipCards();
+    }
+
+    function disableCards() {
+    matchedPairs++;
+
+    setTimeout(() => {
+        firstCard.classList.add('matched');
+        secondCard.classList.add('matched');
+        resetBoard();
+
+        // 检查是否全部完成
+        if (matchedPairs === totalPairs) {
+            setTimeout(() => {
+                alert(`恭喜！你用了 ${steps} 步完成了挑战！`);
+
+                // 【关键修改】这里必须加上 /zhang_jia/ 前缀
+                fetch('/zhang_jia/api/update-memory-score/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ score: steps })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.new_record) {
+                        console.log("刷新了个人纪录！");
+                    } else {
+                        console.log("成绩已保存");
+                    }
+                })
+                .catch(error => console.error('保存失败:', error)); // 加个报错捕获方便调试
+
+            }, 500);
+        }
+    }, 600);
+}
+
+    function unflipCards() {
+        lockBoard = true;
+        setTimeout(() => {
+            firstCard.classList.remove('flipped');
+            secondCard.classList.remove('flipped');
+            resetBoard();
+        }, 1000);
+    }
+
+    function resetBoard() {
+        [hasFlippedCard, lockBoard] = [false, false];
+        [firstCard, secondCard] = [null, null];
+    }
+</script>
+{% endblock %}

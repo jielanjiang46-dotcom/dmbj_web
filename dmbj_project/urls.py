@@ -24,6 +24,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('', include('main_app.urls')),
     path('wang_jia/', include('wang_jia.urls')),
+    path('zhang_jia/',include('zhang_jia.urls')),
 ]
 
 if settings.DEBUG:

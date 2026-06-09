@@ -3,144 +3,47 @@
 {% block content %}
 
 <style>
-    /* 页面容器：让卡片居中显示 */
-    .profile-page-wrapper {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 60vh;
-        padding: 20px;
-    }
-
-    /* 核心大框样式 */
-    .elegant-profile-card {
-        background-color: #f0ddb8;
-        border: 2px solid #d4af37;
-        width: 100%;
-        max-width: 650px;
-        padding: 40px;
-        border-radius: 4px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        color: #333;
-    }
-
-    /* 上半部分：头像 + 名字 (Flex布局) */
-    .card-header-row {
-        display: flex;
-        align-items: center;
-        border-bottom: 1px solid rgba(212, 175, 55, 0.3);
-        padding-bottom: 20px;
-        margin-bottom: 20px;
-    }
-
-    /* 头像样式 */
-    .avatar-img {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid #d4af37;
-        margin-right: 20px;
-        flex-shrink: 0;
-    }
-
-    /* 用户名区域 - 关键修复点 */
-    .user-name-area h2 {
-        margin: 0;
-        font-size: 24px;
-        color: #2c2c2c;
-        font-weight: bold;
-    }
-
-    /* 下半部分：详细信息 */
-    .card-body-info {
-        font-size: 15px;
-        line-height: 1.8;
-        color: #555;
-    }
-
-    .info-item {
-        margin-bottom: 10px;
-    }
-
-    .label {
-        color: #8a7326;
-        font-weight: bold;
-        margin-right: 5px;
-    }
-
-    /* 汪家试炼状态样式 */
-    .trial-status-passed {
-        color: #2e7d32;
-        font-weight: bold;
-    }
-    .trial-status-failed {
-        color: #c62828;
-        font-weight: bold;
-    }
-
-    /* 比率高亮框 */
-    .rate-highlight {
-        display: inline-block;
-        background-color: rgba(212, 175, 55, 0.2);
-        padding: 2px 8px;
-        border-radius: 4px;
-        color: #8a7326;
-        font-weight: bold;
-    }
-
-    /* 按钮样式优化 */
-    .edit-btn {
-        display: inline-block;
-        margin-top: 15px;
-        padding: 8px 20px;
-        background-color: transparent;
-        border: 1px solid #d4af37;
-        color: #d4af37;
-        text-decoration: none;
-        border-radius: 20px;
-        transition: all 0.3s ease;
-        font-size: 14px;
-    }
-
-    .edit-btn:hover {
-        background-color: #d4af37;
-        color: #fff;
-    }
+    /* 样式部分保持不变，直接复用你原来的 CSS */
+    .profile-page-wrapper { display: flex; justify-content: center; align-items: center; min-height: 60vh; padding: 20px; }
+    .elegant-profile-card { background-color: #f0ddb8; border: 2px solid #d4af37; width: 100%; max-width: 650px; padding: 40px; border-radius: 4px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); color: #333; }
+    .card-header-row { display: flex; align-items: center; border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 20px; margin-bottom: 20px; }
+    .avatar-img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #d4af37; margin-right: 20px; flex-shrink: 0; }
+    .user-name-area h2 { margin: 0; font-size: 24px; color: #2c2c2c; font-weight: bold; }
+    .card-body-info { font-size: 15px; line-height: 1.8; color: #555; }
+    .info-item { margin-bottom: 10px; }
+    .label { color: #8a7326; font-weight: bold; margin-right: 5px; }
+    .trial-status-passed { color: #2e7d32; font-weight: bold; }
+    .trial-status-failed { color: #c62828; font-weight: bold; }
+    .rate-highlight { display: inline-block; background-color: rgba(212, 175, 55, 0.2); padding: 2px 8px; border-radius: 4px; color: #8a7326; font-weight: bold; }
+    .edit-btn { display: inline-block; margin-top: 15px; padding: 8px 20px; background-color: transparent; border: 1px solid #d4af37; color: #d4af37; text-decoration: none; border-radius: 20px; transition: all 0.3s ease; font-size: 14px; }
+    .edit-btn:hover { background-color: #d4af37; color: #fff; }
 </style>
 
 <div class="profile-page-wrapper">
     <div class="elegant-profile-card">
-
-        <!-- ✅ 修复部分：头像和名字都在这个 row 里 -->
+        <!-- 头部信息 -->
         <div class="card-header-row">
-            <!-- 头像 -->
             {% if profile.avatar %}
                 <img src="{{ profile.avatar.url }}" alt="Avatar" class="avatar-img">
             {% else %}
                 <div class="avatar-img" style="background-color: #eee; display: flex; align-items: center; justify-content: center; color: #999;">No Img</div>
             {% endif %}
-
-            <!-- ✅ 这里补上了丢失的用户名区域 -->
             <div class="user-name-area">
                 <h2>{{ profile_user.username }}</h2>
             </div>
         </div>
 
-        <!-- 第二部分：其他信息 -->
+        <!-- 详细信息 -->
         <div class="card-body-info">
             <div class="info-item">
                 <span class="label">个性签名:</span>
                 <span>{{ profile.bio|default:"这似乎是一个神秘的稻米。" }}</span>
             </div>
-
             <div class="info-item">
                 <span class="label">此人于</span>
                 <span>{{ profile_user.date_joined|date:"Y年m月d日" }}</span>
                 <span class="label">入局</span>
             </div>
-
-            <!-- 汪家试炼状态显示 -->
             <div class="info-item">
                 <span class="label">试炼状态:</span>
                 {% if profile.is_wang_member %}
@@ -149,8 +52,6 @@
                     <span class="trial-status-failed">❌ 未通过汪家试炼</span>
                 {% endif %}
             </div>
-
-            <!-- 试炼比率显示 -->
             {% if profile.is_wang_member %}
             <div class="info-item">
                 <span class="label">初始比率:</span>
@@ -158,13 +59,80 @@
             </div>
             {% endif %}
 
-            <!-- 编辑按钮 -->
+            <!-- 【关键修改】记忆训练最佳战绩显示 -->
+            <div class="info-item">
+                <span class="label">记忆训练最佳战绩:</span>
+                <span id="memory-best-score" class="rate-highlight">加载中...</span>
+            </div>
+
             {% if is_me %}
                 <a href="{% url 'main_app:edit_profile' %}" class="edit-btn">编辑个人资料</a>
             {% endif %}
         </div>
-
     </div>
 </div>
+
+<!-- 【关键修改】JS 脚本 -->
+<!-- 【关键修改】JS 脚本 -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scoreEl = document.getElementById('memory-best-score');
+
+    // 1. 从页面元素中获取当前查看的用户名
+    // 我们直接读取 h2 标签里的文字，这样最稳妥，不需要依赖复杂的 Django 变量传递
+    let targetUsername = "";
+    const nameElement = document.querySelector('.user-name-area h2');
+    if (nameElement) {
+        targetUsername = nameElement.innerText.trim();
+    }
+
+    // 如果没读到名字，就不请求了，防止报错
+    if (!targetUsername) {
+        console.error("无法获取用户名");
+        return;
+    }
+
+    // 2. 构造正确的 API URL
+    // 格式：/api/get-memory-score/?username=北派四姑
+    let apiUrl = '/api/get-memory-score/?username=' + encodeURIComponent(targetUsername);
+
+    console.log("正在请求接口:", apiUrl);
+
+    // 3. 发起请求
+    fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json(); // 直接解析 JSON
+    })
+    .then(data => {
+        console.log("服务器返回数据:", data);
+
+        if (data.status === 'success') {
+            if (data.score === 99999 || data.score === null) {
+                scoreEl.innerText = "暂无记录";
+                scoreEl.style.color = "#888";
+            } else {
+                scoreEl.innerText = data.score + " 步";
+                scoreEl.style.color = "#d4af37"; // 金色
+            }
+        } else {
+            scoreEl.innerText = "需登录后查看"; // 或者显示错误信息
+            scoreEl.style.color = "#c62828";
+        }
+    })
+    .catch(error => {
+        console.error('Fetch 错误:', error);
+        scoreEl.innerText = "网络错误";
+        scoreEl.style.color = "red";
+    });
+});
+</script>
 
 {% endblock %}

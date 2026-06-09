@@ -13,5 +13,7 @@ class UserProfile(models.Model):
     # 记录是否通过试炼
     is_wang_member = models.BooleanField(default=False)
 
+    best_memory_steps = models.IntegerField(default=99999, verbose_name="记忆训练最佳步数")
+
     def __str__(self):
         return f"{self.user.username}的档案"

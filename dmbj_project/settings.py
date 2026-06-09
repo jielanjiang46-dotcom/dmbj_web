@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'main_app',
     'accounts',
     'wang_jia',
+    'zhang_jia',
 ]
 
 MIDDLEWARE = [
