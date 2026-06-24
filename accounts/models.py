@@ -14,6 +14,7 @@ class UserProfile(models.Model):
     is_wang_member = models.BooleanField(default=False)
 
     best_memory_steps = models.IntegerField(default=99999, verbose_name="记忆训练最佳步数")
+    best_minesweeper_time = models.IntegerField(default=0, verbose_name="黑课最佳成绩(秒)")
 
     def __str__(self):
         return f"{self.user.username}的档案"

@@ -1,0 +1,386 @@
+{% extends "wang_jia/base.html" %}
+
+{% block title %}汪家排雷特训{% endblock %}
+
+{% block content %}
+<style>
+    /* 针对扫雷页面的局部样式 */
+    .game-panel {
+        background: #fff;
+        padding: 20px;
+        border-left: 6px solid #c62828; /* 汪家红 */
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        text-align: center;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .game-info-bar {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+        font-size: 18px;
+        color: #5a4a42;
+        font-weight: bold;
+        border-bottom: 1px dashed #ccc;
+        padding-bottom: 10px;
+    }
+
+    /* 棋盘容器 */
+    #minesweeper-board {
+        display: inline-grid;
+        gap: 2px;
+        background-color: #bbb; /* 格子缝隙颜色 */
+        border: 4px solid #8a7326; /* 金色外框 */
+        margin-top: 10px;
+        user-select: none;
+    }
+
+    /* 单个格子 */
+    .cell {
+        width: 35px;
+        height: 35px;
+        background-color: #e6e2d8; /* 默认未点开颜色 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: monospace;
+        font-weight: bold;
+        font-size: 18px;
+        cursor: pointer;
+        transition: background 0.1s;
+        box-shadow: inset 2px 2px 0px rgba(255,255,255,0.5), inset -2px -2px 0px rgba(0,0,0,0.1);
+    }
+
+    .cell:hover {
+        background-color: #f0ece0;
+    }
+
+    /* 已点开的格子 */
+    .cell.revealed {
+        background-color: #fff;
+        box-shadow: none;
+        border: 1px solid #eee;
+        cursor: default;
+    }
+
+    /* 踩雷 */
+    .cell.mine {
+        background-color: #c62828 !important; /* 汪家红 */
+        color: white;
+    }
+
+    /* 插旗 */
+    .cell.flagged {
+        color: #c62828;
+    }
+
+    /* 数字颜色 */
+    .c-1 { color: blue; }
+    .c-2 { color: green; }
+    .c-3 { color: red; }
+    .c-4 { color: darkblue; }
+    .c-5 { color: brown; }
+    .c-6 { color: teal; }
+    .c-7 { color: black; }
+    .c-8 { color: gray; }
+
+    .controls {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .btn-wang {
+        background-color: #5a4a42;
+        color: white;
+        border: none;
+        padding: 10px 25px;
+        font-size: 16px;
+        cursor: pointer;
+        font-family: inherit;
+        letter-spacing: 2px;
+    }
+    .btn-wang:hover {
+        background-color: #3e322c;
+    }
+
+    /* 【新增】难度选择器样式 */
+    .difficulty-selector select {
+        padding: 8px 15px;
+        font-size: 16px;
+        border: 2px solid #8a7326;
+        background-color: #f9f9f9;
+        color: #5a4a42;
+        font-weight: bold;
+        outline: none;
+        cursor: pointer;
+    }
+</style>
+
+<div class="game-panel">
+    <h2 style="color:#5a4a42; margin-top:0;">【 汪家 · 机关排雷阵 】</h2>
+    <p style="font-size:14px; color:#888;">规则：找出所有地雷。右键插旗标记，左键挖掘。</p>
+
+    <div class="game-info-bar">
+        <span id="timer">时间: 0s</span>
+        <span id="mine-count">剩余地雷: --</span>
+        <span style="color:#c62828">历史最佳: {{ best_time }}s</span>
+    </div>
+
+    <!-- 棋盘将在这里生成 -->
+    <div id="minesweeper-board"></div>
+
+    <div class="controls">
+        <!-- 【新增】难度选择下拉框 -->
+        <div class="difficulty-selector">
+            <select id="difficulty-select">
+                <option value="easy">初级试炼 (8x8)</option>
+                <option value="medium" selected>中级试炼 (10x10)</option>
+                <option value="hard">高级试炼 (12x12)</option>
+            </select>
+        </div>
+
+        <button onclick="initGame()" class="btn-wang">重置试炼</button>
+    </div>
+</div>
+
+<script>
+    let boardEl = document.getElementById('minesweeper-board');
+    let timerEl = document.getElementById('timer');
+    let mineCountEl = document.getElementById('mine-count');
+    let difficultySelect = document.getElementById('difficulty-select'); // 获取下拉框元素
+
+    let timerInterval;
+    let seconds = 0;
+    let isGameOver = false;
+    let currentGrid = []; // 存储后端返回的逻辑网格数据
+    let ROWS = 10;
+    let COLS = 10;
+    let TOTAL_MINES = 15; // 当前总雷数
+
+    // 【新增】难度配置表
+    const DIFFICULTY_SETTINGS = {
+        'easy':   { rows: 8,  cols: 8,  mines: 10 },
+        'medium': { rows: 10, cols: 10, mines: 15 },
+        'hard':   { rows: 12, cols: 12, mines: 30 }
+    };
+
+    // 初始化游戏
+    function initGame() {
+        clearInterval(timerInterval);
+        seconds = 0;
+        isGameOver = false;
+        timerEl.innerText = "时间: 0s";
+        boardEl.innerHTML = '<div style="padding:20px; color:#666;">正在生成阵法...</div>';
+
+        // 获取用户选择的难度
+        const selectedDifficulty = difficultySelect.value;
+        const settings = DIFFICULTY_SETTINGS[selectedDifficulty];
+
+        // 请求后端生成地图
+        fetch("{% url 'wang_jia:api_minesweeper_action' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            // 【修改】发送难度参数给后端
+            body: JSON.stringify({
+                action: 'start',
+                difficulty: selectedDifficulty,
+                rows: settings.rows,
+                cols: settings.cols,
+                mines_count: settings.mines
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                currentGrid = data.grid;
+                ROWS = data.rows;
+                COLS = data.cols;
+                TOTAL_MINES = data.mines_count || settings.mines; // 保存当前总雷数
+
+                renderBoard();
+                startTimer();
+                updateMineCount(); // 初始化雷数显示
+            } else {
+                alert("阵法生成失败：" + (data.message || "未知错误"));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("连接汪家服务器失败，请检查网络或联系管理员。");
+        });
+    }
+
+    // 渲染棋盘 DOM
+    function renderBoard() {
+        boardEl.innerHTML = '';
+        boardEl.style.gridTemplateColumns = `repeat(${COLS}, 35px)`; // 动态设置列宽
+
+        for(let r=0; r<ROWS; r++) {
+            for(let c=0; c<COLS; c++) {
+                let cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.r = r;
+                cell.dataset.c = c;
+
+                // 绑定点击事件
+                cell.addEventListener('click', () => handleClick(r, c));
+                cell.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    handleRightClick(r, c);
+                });
+
+                boardEl.appendChild(cell);
+            }
+        }
+    }
+
+    // 左键点击逻辑
+    function handleClick(r, c) {
+        if(isGameOver || currentGrid[r][c].revealed || currentGrid[r][c].flagged) return;
+
+        let cellData = currentGrid[r][c];
+        let cellDom = getCellDom(r, c);
+
+        if (cellData.is_mine) {
+            gameOver(false);
+            cellDom.classList.add('mine');
+            cellDom.innerHTML = '💣';
+        } else {
+            revealCell(r, c);
+            checkWin();
+        }
+    }
+
+    // 递归展开空白区域 (Flood Fill)
+    function revealCell(r, c) {
+        if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+        let cellData = currentGrid[r][c];
+        if (cellData.revealed || cellData.flagged) return;
+
+        cellData.revealed = true;
+        let cellDom = getCellDom(r, c);
+        cellDom.classList.add('revealed');
+
+        if (cellData.count > 0) {
+            cellDom.innerText = cellData.count;
+            cellDom.classList.add(`c-${cellData.count}`);
+        } else {
+            // 如果是 0，向周围扩散
+            for(let i=-1; i<=1; i++) {
+                for(let j=-1; j<=1; j++) {
+                    revealCell(r+i, c+j);
+                }
+            }
+        }
+    }
+
+    // 右键插旗逻辑
+    function handleRightClick(r, c) {
+        if(isGameOver || currentGrid[r][c].revealed) return;
+
+        let cellData = currentGrid[r][c];
+        let cellDom = getCellDom(r, c);
+
+        if (cellData.flagged) {
+            cellData.flagged = false;
+            cellDom.classList.remove('flagged');
+            cellDom.innerText = '';
+        } else {
+            cellData.flagged = true;
+            cellDom.classList.add('flagged');
+            cellDom.innerText = '🚩';
+        }
+        updateMineCount();
+    }
+
+    // 辅助函数：获取 DOM 元素
+    function getCellDom(r, c) {
+        return boardEl.children[r * COLS + c];
+    }
+
+    // 计时器
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            seconds++;
+            timerEl.innerText = `时间: ${seconds}s`;
+        }, 1000);
+    }
+
+    // 【修改】更新剩余雷数显示 (使用动态变量 TOTAL_MINES)
+    function updateMineCount() {
+        let flags = 0;
+        for(let r=0; r<ROWS; r++) {
+            for(let c=0; c<COLS; c++) {
+                if(currentGrid[r] && currentGrid[r][c] && currentGrid[r][c].flagged) flags++;
+            }
+        }
+        mineCountEl.innerText = `剩余地雷: ${TOTAL_MINES - flags}`;
+    }
+
+    // 检查是否胜利
+    function checkWin() {
+        let revealedCount = 0;
+        // 安全格子总数 = 总格数 - 总雷数
+        let totalSafeCells = (ROWS * COLS) - TOTAL_MINES;
+
+        for(let r=0; r<ROWS; r++) {
+            for(let c=0; c<COLS; c++) {
+                if(currentGrid[r][c].revealed) revealedCount++;
+            }
+        }
+
+        if(revealedCount === totalSafeCells) {
+            gameOver(true);
+        }
+    }
+
+    // 游戏结束处理
+    function gameOver(win) {
+        isGameOver = true;
+        clearInterval(timerInterval);
+
+        if (win) {
+            alert(`恭喜！你成功破解了汪家机关！\n用时: ${seconds}秒`);
+            // 提交成绩到后端
+            submitScore();
+        } else {
+            alert("轰！你触发了机关，试炼失败。");
+            // 显示所有雷
+            for(let r=0; r<ROWS; r++) {
+                for(let c=0; c<COLS; c++) {
+                    if(currentGrid[r][c].is_mine) {
+                        let dom = getCellDom(r, c);
+                        dom.classList.add('revealed', 'mine');
+                        dom.innerHTML = '💣';
+                    }
+                }
+            }
+        }
+    }
+
+    // 提交成绩
+    function submitScore() {
+        fetch("{% url 'wang_jia:api_minesweeper_action' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ action: 'submit_score', time: seconds })
+        }).then(res => res.json())
+          .then(data => console.log(data.message))
+          .catch(err => console.error("提交成绩失败", err));
+    }
+
+    // 页面加载时自动开始
+    window.onload = initGame;
+
+</script>
+{% endblock %}

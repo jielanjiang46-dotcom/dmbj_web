@@ -3,7 +3,7 @@
 {% block content %}
 
 <style>
-    /* 样式部分保持不变，直接复用你原来的 CSS */
+    /* ... 原有的 CSS 保持不变 ... */
     .profile-page-wrapper { display: flex; justify-content: center; align-items: center; min-height: 60vh; padding: 20px; }
     .elegant-profile-card { background-color: #f0ddb8; border: 2px solid #d4af37; width: 100%; max-width: 650px; padding: 40px; border-radius: 4px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); color: #333; }
     .card-header-row { display: flex; align-items: center; border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 20px; margin-bottom: 20px; }
@@ -59,10 +59,16 @@
             </div>
             {% endif %}
 
-            <!-- 【关键修改】记忆训练最佳战绩显示 -->
+            <!-- 1. 记忆训练最佳战绩 -->
             <div class="info-item">
                 <span class="label">记忆训练最佳战绩:</span>
                 <span id="memory-best-score" class="rate-highlight">加载中...</span>
+            </div>
+
+            <!-- 2. 【新增】排雷特训最佳战绩 -->
+            <div class="info-item">
+                <span class="label">排雷特训最佳战绩:</span>
+                <span id="minesweeper-best-time" class="rate-highlight">加载中...</span>
             </div>
 
             {% if is_me %}
@@ -72,65 +78,63 @@
     </div>
 </div>
 
-<!-- 【关键修改】JS 脚本 -->
-<!-- 【关键修改】JS 脚本 -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // 获取页面上的 DOM 元素
     const scoreEl = document.getElementById('memory-best-score');
+    const timeEl = document.getElementById('minesweeper-best-time'); // 新增
 
-    // 1. 从页面元素中获取当前查看的用户名
-    // 我们直接读取 h2 标签里的文字，这样最稳妥，不需要依赖复杂的 Django 变量传递
+    // 1. 获取当前查看的用户名 (从 h2 标签读取)
     let targetUsername = "";
     const nameElement = document.querySelector('.user-name-area h2');
     if (nameElement) {
         targetUsername = nameElement.innerText.trim();
     }
 
-    // 如果没读到名字，就不请求了，防止报错
     if (!targetUsername) {
         console.error("无法获取用户名");
         return;
     }
 
-    // 2. 构造正确的 API URL
-    // 格式：/api/get-memory-score/?username=北派四姑
-    let apiUrl = '/zhang_jia/api/get-memory-score/?username=' + encodeURIComponent(targetUsername);
-
-    console.log("正在请求接口:", apiUrl);
-
-    // 3. 发起请求
-    fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        return response.json(); // 直接解析 JSON
-    })
+    // --- 请求 1: 获取记忆训练成绩 ---
+    fetch('/zhang_jia/api/get-memory-score/?username=' + encodeURIComponent(targetUsername))
+    .then(response => response.json())
     .then(data => {
-        console.log("服务器返回数据:", data);
-
         if (data.status === 'success') {
             if (data.score === 99999 || data.score === null) {
                 scoreEl.innerText = "暂无记录";
                 scoreEl.style.color = "#888";
             } else {
                 scoreEl.innerText = data.score + " 步";
-                scoreEl.style.color = "#d4af37"; // 金色
+                scoreEl.style.color = "#d4af37";
             }
         } else {
-            scoreEl.innerText = "需登录后查看"; // 或者显示错误信息
-            scoreEl.style.color = "#c62828";
+            scoreEl.innerText = "-";
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        scoreEl.innerText = "错误";
+    });
+
+    // --- 请求 2: 【新增】获取扫雷成绩 ---
+    fetch('/zhang_jia/api/get-minesweeper-score/?username=' + encodeURIComponent(targetUsername))
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // 使用后端返回的 display_text，如果没有记录则显示默认文本
+            timeEl.innerText = data.display_text || "暂无记录";
+            // 如果有具体时间，显示金色；否则灰色
+            timeEl.style.color = data.time ? "#d4af37" : "#888";
+        } else {
+            timeEl.innerText = "需登录后查看";
+            timeEl.style.color = "#c62828";
         }
     })
     .catch(error => {
-        console.error('Fetch 错误:', error);
-        scoreEl.innerText = "网络错误";
-        scoreEl.style.color = "red";
+        console.error('扫雷数据 Fetch 错误:', error);
+        timeEl.innerText = "网络错误";
+        timeEl.style.color = "red";
     });
 });
 </script>
