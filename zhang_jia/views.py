@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User  # <--- 【关键】必须加上这一行！
 import json
 
 # Create your views here.
