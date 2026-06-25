@@ -15,6 +15,7 @@ class UserProfile(models.Model):
 
     best_memory_steps = models.IntegerField(default=99999, verbose_name="记忆训练最佳步数")
     best_minesweeper_time = models.IntegerField(default=0, verbose_name="黑课最佳成绩(秒)")
+    best_snake_score = models.IntegerField(default=0, verbose_name="贪吃蛇最高分")
 
     def __str__(self):
         return f"{self.user.username}的档案"

@@ -59,16 +59,24 @@
             </div>
             {% endif %}
 
-            <!-- 1. 记忆训练最佳战绩 -->
+            <hr style="border: 0; border-top: 1px dashed #d4af37; margin: 20px 0; opacity: 0.5;">
+
+            <!-- 1. 记忆训练最佳战绩 (张家) -->
             <div class="info-item">
-                <span class="label">记忆训练最佳战绩:</span>
+                <span class="label">🧠 记忆训练最佳:</span>
                 <span id="memory-best-score" class="rate-highlight">加载中...</span>
             </div>
 
-            <!-- 2. 【新增】排雷特训最佳战绩 -->
+            <!-- 2. 排雷特训最佳战绩 (汪家) -->
             <div class="info-item">
-                <span class="label">排雷特训最佳战绩:</span>
+                <span class="label">💣 排雷特训最佳:</span>
                 <span id="minesweeper-best-time" class="rate-highlight">加载中...</span>
+            </div>
+
+            <!-- 3. 【新增】蛇阵迷踪最佳战绩 (张家) -->
+            <div class="info-item">
+                <span class="label">🐍 蛇阵迷踪最佳:</span>
+                <span id="snake-best-score" class="rate-highlight">加载中...</span>
             </div>
 
             {% if is_me %}
@@ -81,8 +89,9 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // 获取页面上的 DOM 元素
-    const scoreEl = document.getElementById('memory-best-score');
-    const timeEl = document.getElementById('minesweeper-best-time'); // 新增
+    const memoryScoreEl = document.getElementById('memory-best-score');
+    const minesweeperTimeEl = document.getElementById('minesweeper-best-time');
+    const snakeScoreEl = document.getElementById('snake-best-score'); // 新增
 
     // 1. 获取当前查看的用户名 (从 h2 标签读取)
     let targetUsername = "";
@@ -102,40 +111,60 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(data => {
         if (data.status === 'success') {
             if (data.score === 99999 || data.score === null) {
-                scoreEl.innerText = "暂无记录";
-                scoreEl.style.color = "#888";
+                memoryScoreEl.innerText = "暂无记录";
+                memoryScoreEl.style.color = "#888";
             } else {
-                scoreEl.innerText = data.score + " 步";
-                scoreEl.style.color = "#d4af37";
+                memoryScoreEl.innerText = data.score + " 步";
+                memoryScoreEl.style.color = "#d4af37";
             }
         } else {
-            scoreEl.innerText = "-";
+            memoryScoreEl.innerText = "-";
         }
     })
     .catch(err => {
         console.error(err);
-        scoreEl.innerText = "错误";
+        memoryScoreEl.innerText = "错误";
     });
 
-    // --- 请求 2: 【新增】获取扫雷成绩 ---
+    // --- 请求 2: 获取扫雷成绩 ---
     fetch('/wang_jia/api/get-minesweeper-score/?username=' + encodeURIComponent(targetUsername))
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            // 使用后端返回的 display_text，如果没有记录则显示默认文本
-            timeEl.innerText = data.display_text || "暂无记录";
-            // 如果有具体时间，显示金色；否则灰色
-            timeEl.style.color = data.time ? "#d4af37" : "#888";
+            minesweeperTimeEl.innerText = data.display_text || "暂无记录";
+            minesweeperTimeEl.style.color = data.time ? "#d4af37" : "#888";
         } else {
-            timeEl.innerText = "需登录后查看";
-            timeEl.style.color = "#c62828";
+            minesweeperTimeEl.innerText = "需登录后查看";
+            minesweeperTimeEl.style.color = "#c62828";
         }
     })
     .catch(error => {
         console.error('扫雷数据 Fetch 错误:', error);
-        timeEl.innerText = "网络错误";
-        timeEl.style.color = "red";
+        minesweeperTimeEl.innerText = "网络错误";
     });
+
+    // --- 请求 3: 【新增】获取贪吃蛇成绩 ---
+    // 假设你在 zhang_jia/urls.py 里配置了类似 api/get-snake-score/ 的路由
+    fetch('/zhang_jia/api/get-snake-score/?username=' + encodeURIComponent(targetUsername))
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            if (data.score === 0 || data.score === null) {
+                snakeScoreEl.innerText = "暂无记录";
+                snakeScoreEl.style.color = "#888";
+            } else {
+                snakeScoreEl.innerText = data.score + " 分";
+                snakeScoreEl.style.color = "#d4af37";
+            }
+        } else {
+            snakeScoreEl.innerText = "-";
+        }
+    })
+    .catch(error => {
+        console.error('贪吃蛇数据 Fetch 错误:', error);
+        snakeScoreEl.innerText = "网络错误";
+    });
+
 });
 </script>
 

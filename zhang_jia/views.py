@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User  # <--- 【关键】必须加上这一行！
+from django.contrib.auth.models import User 
 import json
 
 # Create your views here.
@@ -70,3 +70,54 @@ def get_memory_score(request):
         'status': 'success',
         'score': score
     })
+
+def gu_lou(request):
+    return render(request, 'zhang_jia/gu_lou.html')
+
+@login_required
+def snake_game(request):
+    """渲染张家古楼贪吃蛇页面"""
+    try:
+        profile = request.user.profile
+        best_score = profile.best_snake_score
+    except:
+        best_score = 0
+
+    return render(request, 'zhang_jia/snake.html', {
+        'best_score': best_score
+    })
+
+@login_required
+def api_snake_action(request):
+    """处理贪吃蛇成绩提交"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            action = data.get('action')
+
+            if action == 'submit_score':
+                score = int(data.get('score', 0))
+                profile = request.user.profile
+
+                # 分数越高越好，只有打破记录才保存
+                if score > profile.best_snake_score:
+                    profile.best_snake_score = score
+                    profile.save()
+                    return JsonResponse({'status': 'success', 'message': '古楼机关已记录新纪录！'})
+
+                return JsonResponse({'status': 'success', 'message': '未能打破古楼记录'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'msg': str(e)}, status=400)
+
+    return JsonResponse({'status': 'error'}, status=400)
+
+@login_required
+def get_snake_score(request):
+    username = request.GET.get('username')
+    try:
+        user = User.objects.get(username=username)
+        profile = user.profile
+        score = profile.best_snake_score
+        return JsonResponse({'status': 'success', 'score': score})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
