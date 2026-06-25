@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // --- 请求 2: 【新增】获取扫雷成绩 ---
-    fetch('/zhang_jia/api/get-minesweeper-score/?username=' + encodeURIComponent(targetUsername))
+    fetch('/wang_jia/api/get-minesweeper-score/?username=' + encodeURIComponent(targetUsername))
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
