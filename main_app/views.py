@@ -1,10 +1,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.db.models import Q
 from .models import Topic, Entry, Comment, Like
 from .forms import TopicForm, EntryForm
-from accounts.models import UserProfile
+from accounts.models import UserProfile, Friendship  # 确保 Friendship 模型已导入
+import json
+from django.views.decorators.http import require_POST
 
 def index(request):
     """app的主页"""
@@ -30,7 +33,7 @@ def topic(request, topic_id):
     else:
         entries = topic.entry_set.order_by('-date_added')
 
-    # 2. 【新增】处理评论提交逻辑 (支持图片 + 回复)
+    # 2. 处理评论提交逻辑 (支持图片 + 回复)
     if request.method == 'POST' and 'content' in request.POST:
         content = request.POST.get('content')
         entry_id = request.POST.get('entry_id')
@@ -104,7 +107,6 @@ def edit_entry(request, entry_id):
         form = EntryForm(instance=entry)
     else:
         # 【重要修复】编辑时必须也要传入 files=request.FILES
-        # 否则如果用户没重新选图，可能会出问题；如果选了图，不加这个也存不上
         form = EntryForm(instance=entry, data=request.POST, files=request.FILES)
 
         if form.is_valid():
@@ -136,7 +138,7 @@ def add_comment(request, entry_id):
                 entry=entry,
                 user=request.user,
                 content=content,
-                image=uploaded_image,      # 【修复】修正了之前的拼写错误
+                image=uploaded_image,
                 parent_comment=parent_comment
             )
 
@@ -191,18 +193,171 @@ def delete_entry(request, entry_id):
 
     return redirect('main_app:topic', topic_id=topic.id)
 
+# --- 社交系统 API 接口 ---
+
+@login_required
+@require_POST  # 强制只能 POST 请求
+def add_friend(request):
+    try:
+        # 1. 解析数据 (兼容 JSON 和 表单两种格式)
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+            target_id = data.get('user_id')
+        else:
+            target_id = request.POST.get('user_id')
+
+        if not target_id:
+            return JsonResponse({'status': 'error', 'message': '缺少用户ID'})
+
+        # 2. 查找用户
+        target_user = User.objects.get(id=target_id)
+
+        # 3. 逻辑检查
+        if target_user == request.user:
+            return JsonResponse({'status': 'error', 'message': '不能添加自己'})
+
+        # 检查是否已存在关系 (双向检查)
+        if Friendship.objects.filter(
+            Q(from_user=request.user, to_user=target_user) | 
+            Q(from_user=target_user, to_user=request.user)
+        ).exists():
+            return JsonResponse({'status': 'error', 'message': '你们已经是好友了'})
+
+        # 4. 创建申请
+        Friendship.objects.create(
+            from_user=request.user, 
+            to_user=target_user, 
+            status=Friendship.STATUS_PENDING
+        )
+
+        # 【关键修改】这里不要 redirect！直接返回成功信息
+        return JsonResponse({
+            'status': 'success', 
+            'message': f'已向 {target_user.username} 发送好友申请'
+        })
+
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': '用户不存在'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+
+@login_required
+def search_user(request):
+    """搜索用户接口 (GET)"""
+    keyword = request.GET.get('q', '').strip()
+    if not keyword:
+        return JsonResponse({'status': 'error', 'message': '请输入搜索内容'})
+
+    # 1. 先构建查询集 (Filter) - 此时不要切片
+    # 注意：如果 keyword 是纯数字，Q(id=keyword) 没问题；如果是字符串，Q(id='abc') 可能会报错，建议做个判断或者用 try-except，但为了简单先保留原逻辑
+    users_query = User.objects.filter(
+        Q(username__icontains=keyword) | Q(id=keyword)
+    )
+    
+    # 2. (可选) 如果有排序需求，必须在这里加，比如 .order_by('id')
+    
+    # 3. 检查是否存在 (Exists)
+    if users_query.exists():
+        # 4. 获取第一个用户 (First) - 这里不需要切片，first() 会自动处理
+        user = users_query.first() 
+        
+        return JsonResponse({
+            'status': 'success', 
+            'user': {
+                'id': user.id, 
+                'username': user.username
+            }
+        })
+    
+    return JsonResponse({'status': 'error', 'message': '未找到该用户'})
+
+# --- 修改后的 user_profile 视图 ---
+
+@login_required
 def user_profile(request, username):
     user_obj = get_object_or_404(User, username=username)
     profile, created = UserProfile.objects.get_or_create(user=user_obj)
     topics = user_obj.topics.all().order_by('-date_added')
 
+    # 初始化变量
+    relation_status = 'none' 
+    pending_requests_in = [] # 我收到的申请
+    friends_list = []
+    friend_count = 0
+
+    if request.user.is_authenticated:
+        # --- 情况 A：我看的是别人的主页 ---
+        if request.user != user_obj:
+            # 1. 检查是否已经是双向好友
+            is_mutual = Friendship.objects.filter(
+                from_user=request.user, to_user=user_obj, status=Friendship.STATUS_ACCEPTED
+            ).exists() and Friendship.objects.filter(
+                from_user=user_obj, to_user=request.user, status=Friendship.STATUS_ACCEPTED
+            ).exists()
+            
+            if is_mutual:
+                relation_status = 'friends'
+            else:
+                # 2. 检查我是否发过申请（单向）
+                sent_request = Friendship.objects.filter(
+                    from_user=request.user, to_user=user_obj, status=Friendship.STATUS_PENDING
+                ).exists()
+                
+                if sent_request:
+                    relation_status = 'pending_sent' # 我发了，等对方
+                else:
+                    # 3. 检查对方是否发过申请给我（我可以直接通过）
+                    received_request = Friendship.objects.filter(
+                        from_user=user_obj, to_user=request.user, status=Friendship.STATUS_PENDING
+                    ).exists()
+                    
+                    if received_request:
+                        relation_status = 'pending_received' # 对方发了，我可以点通过
+                    else:
+                        relation_status = 'none' # 没关系
+
+        # --- 情况 B：我看的是自己的主页 ---
+        else:
+            # 获取“别人发给我，且状态为待验证”的申请
+            pending_requests_in = Friendship.objects.filter(
+                to_user=request.user, 
+                status=Friendship.STATUS_PENDING
+            ).select_related('from_user') # 优化查询，直接拿到申请人对象
+
+            # 获取真正的好友列表 (双向 STATUS_ACCEPTED)
+            # 这里简化逻辑：只要我和对方有一条通过的记录，就算好友（或者你可以严格判断双向）
+            # 通常做法：查所有和我有关且状态为 ACCEPTED 的记录
+            my_friends_ids = Friendship.objects.filter(
+                Q(from_user=request.user, status=Friendship.STATUS_ACCEPTED) | 
+                Q(to_user=request.user, status=Friendship.STATUS_ACCEPTED)
+            ).values_list('from_user_id', 'to_user_id')
+            
+            # 提取所有关联的 ID 并去重
+            ids = set()
+            for fid, tid in my_friends_ids:
+                if fid != request.user.id: ids.add(fid)
+                if tid != request.user.id: ids.add(tid)
+                
+            friends_list = User.objects.filter(id__in=ids)
+            friend_count = friends_list.count()
+
     context = {
         'profile_user': user_obj,
         'profile': profile,
         'topics': topics,
-        'is_me': request.user == user_obj
+        'is_me': request.user == user_obj,
+        
+        # 传递关系状态给前端 (用于显示按钮)
+        'relation_status': relation_status, 
+        
+        # 传递待处理申请列表 (仅当看自己主页时有数据)
+        'pending_requests_in': pending_requests_in,
+        
+        'friends_list': friends_list,
+        'friend_count': friend_count
     }
     return render(request, 'main_app/profile.html', context)
+
 
 @login_required
 def edit_profile(request):
@@ -221,3 +376,166 @@ def edit_profile(request):
         return redirect('main_app:user_profile', username=request.user.username)
 
     return render(request, 'main_app/edit_profile.html', {'profile': profile})
+
+@login_required
+@require_POST
+def send_friend_request(request):
+    """发送好友申请"""
+    try:
+        data = json.loads(request.body)
+        target_username = data.get('username')
+        target_user = User.objects.get(username=target_username)
+        
+        if target_user == request.user:
+            return JsonResponse({'status': 'error', 'msg': '不能添加自己'})
+
+        # 检查是否已经是好友（双向都通过）
+        is_friend = Friendship.objects.filter(
+            from_user=request.user, to_user=target_user, status=Friendship.STATUS_ACCEPTED
+        ).exists() or Friendship.objects.filter(
+            from_user=target_user, to_user=request.user, status=Friendship.STATUS_ACCEPTED
+        ).exists()
+
+        if is_friend:
+            return JsonResponse({'status': 'error', 'msg': '你们已经是好友了'})
+
+        # 👇👇👇 核心修改：使用 get_or_create，并设置默认状态为 PENDING 👇👇👇
+        friendship, created = Friendship.objects.get_or_create(
+            from_user=request.user,
+            to_user=target_user,
+            defaults={'status': Friendship.STATUS_PENDING} # 如果是新创建的，默认为待验证
+        )
+
+        # 如果记录已存在但不是 Pending (比如之前被拒绝过，或者逻辑上有残留)，强制更新为 Pending
+        if not created and friendship.status != Friendship.STATUS_PENDING:
+             # 这里可以根据业务需求决定：是覆盖旧状态，还是提示“已发送过申请”
+             # 简单起见，我们假设重新发送会重置状态
+             friendship.status = Friendship.STATUS_PENDING
+             friendship.save()
+
+        return JsonResponse({'status': 'success', 'msg': '好友申请已发送，等待对方通过'})
+
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'msg': '用户不存在'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'msg': str(e)})
+
+
+@login_required
+@require_POST
+def accept_friend(request):
+    """
+    用户点击“通过”时调用。
+    现在从 POST 表单中获取 user_id，而不是从 URL 获取。
+    """
+    # 1. 从表单数据中获取 ID
+    target_user_id = request.POST.get('user_id') 
+    
+    if not target_user_id:
+        return JsonResponse({'status': 'error', 'message': '缺少用户ID'})
+
+    try:
+        # 2. 找到那条“别人发给我”的待验证记录
+        friendship = Friendship.objects.get(
+            from_user_id=target_user_id,
+            to_user=request.user,
+            status=Friendship.STATUS_PENDING
+        )
+        
+        # 3. 更新状态为“已通过”
+        friendship.status = Friendship.STATUS_ACCEPTED
+        friendship.save()
+        
+        # 4. (推荐) 自动创建一条反向记录，方便以后查询
+        Friendship.objects.get_or_create(
+            from_user=request.user,
+            to_user_id=target_user_id,
+            defaults={'status': Friendship.STATUS_ACCEPTED}
+        )
+        
+    except Friendship.DoesNotExist:
+        pass # 如果记录不存在（可能重复点击），忽略错误
+
+    # 5. 处理完后，重定向回当前用户的主页
+    # 注意：这里假设你是想刷新页面看列表变化。如果是 AJAX 请求，应该返回 JsonResponse
+    # 为了配合你之前的 HTML form action，这里保持 redirect
+    return redirect('main_app:user_profile', username=request.user.username)
+
+@login_required
+@require_POST
+def reject_friend(request):
+    """
+    功能：拒绝好友申请（或者删除已存在的好友关系）
+    """
+    # 1. 从表单获取 ID
+    target_user_id = request.POST.get('user_id')
+
+    if not target_user_id:
+        return JsonResponse({'status': 'error', 'message': '缺少用户ID'})
+
+    try:
+        # 尝试找到这条关系记录并删除
+        # 无论是 Pending 还是 Accepted，直接删掉就是拒绝/绝交
+        friendship = Friendship.objects.get(
+            Q(from_user_id=target_user_id, to_user=request.user) | 
+            Q(from_user=request.user, to_user_id=target_user_id)
+        )
+        friendship.delete()
+    except Friendship.DoesNotExist:
+        pass # 没找到就不做任何事
+    
+    # 刷新当前页面
+    return redirect('main_app:user_profile', username=request.user.username)
+
+@login_required
+@require_POST
+def cancel_friend_request(request):
+    """取消我发出的好友申请"""
+    # 从表单获取对方的 ID
+    target_user_id = request.POST.get('user_id')
+    if not target_user_id:
+        return JsonResponse({'status': 'error', 'message': '缺少用户ID'})
+
+    try:
+        friendship = Friendship.objects.get(
+            from_user=request.user,
+            to_user_id=target_user_id,
+            status=Friendship.STATUS_PENDING
+        )
+        friendship.delete()
+    except Friendship.DoesNotExist:
+        pass
+        
+    return redirect('main_app:user_profile', username=request.user.username)
+
+
+@login_required
+@require_POST
+def remove_friend(request):
+    """
+    功能：删除好友（双向删除）
+    逻辑：A和B是好友，A点击删除，需要删掉 A->B 和 B->A 两条记录
+    改动：从 request.POST 获取 user_id，不再依赖 URL 参数
+    """
+    # 1. 从 POST 数据中获取对方 ID
+    target_user_id = request.POST.get('user_id')
+    
+    if not target_user_id:
+        # 如果没有 ID，通常重定向回原页面或者报错，这里选择安全地重定向
+        return redirect('main_app:user_profile', username=request.user.username)
+
+    try:
+        # 2. 删除 "我 -> 他" 的记录
+        f1 = Friendship.objects.get(from_user=request.user, to_user_id=target_user_id)
+        f1.delete()
+        
+        # 3. 删除 "他 -> 我" 的记录
+        f2 = Friendship.objects.get(from_user_id=target_user_id, to_user=request.user)
+        f2.delete()
+        
+    except Friendship.DoesNotExist:
+        # 如果找不到记录（可能已经删过了），不做任何事，防止报错
+        pass
+        
+    # 4. 操作完成后，刷新当前用户的主页
+    return redirect('main_app:user_profile', username=request.user.username)

@@ -1,39 +1,260 @@
 {% extends "main_app/base.html" %}
-
 {% block content %}
-
 <style>
-    /* ... 原有的 CSS 保持不变 ... */
-    .profile-page-wrapper { display: flex; justify-content: center; align-items: center; min-height: 60vh; padding: 20px; }
-    .elegant-profile-card { background-color: #f0ddb8; border: 2px solid #d4af37; width: 100%; max-width: 650px; padding: 40px; border-radius: 4px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); color: #333; }
-    .card-header-row { display: flex; align-items: center; border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 20px; margin-bottom: 20px; }
-    .avatar-img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #d4af37; margin-right: 20px; flex-shrink: 0; }
-    .user-name-area h2 { margin: 0; font-size: 24px; color: #2c2c2c; font-weight: bold; }
+    /* --- 基础页面布局 --- */
+    .profile-page-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 80vh;
+        padding: 40px 20px;
+    }
+    .elegant-profile-card {
+        background-color: #f0ddb8;
+        border: 2px solid #d4af37;
+        width: 100%;
+        max-width: 650px;
+        padding: 40px;
+        border-radius: 4px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        color: #333;
+        position: relative;
+    }
+    /* --- 头部区域 --- */
+    .card-header-row {
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+    }
+    .avatar-img {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #d4af37;
+        margin-right: 20px;
+        flex-shrink: 0;
+    }
+    .user-name-area h2 {
+        margin: 0;
+        font-size: 24px;
+        color: #2c2c2c;
+        font-weight: bold;
+    }
+    .user-id-display {
+        margin-top: 5px;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 14px;
+        color: #8a7326;
+        font-weight: bold;
+        background: rgba(212, 175, 55, 0.1);
+        padding: 2px 8px;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    /* --- 按钮样式 --- */
+    .action-area { margin-top: 15px; }
+    .btn-primary {
+        background-color: #d4af37; color: #fff; border: none; padding: 8px 20px;
+        border-radius: 20px; cursor: pointer; font-weight: bold; transition: all 0.3s;
+    }
+    .btn-primary:hover { background-color: #b8962e; transform: translateY(-2px); }
+    .btn-success {
+        background-color: #2e7d32; color: #fff; border: none; padding: 8px 20px;
+        border-radius: 20px; cursor: pointer; font-weight: bold; transition: all 0.3s;
+    }
+    .btn-success:hover { background-color: #1b5e20; transform: translateY(-2px); }
+    .btn-danger {
+        background-color: #d32f2f; color: #fff; border: none; padding: 8px 20px;
+        border-radius: 20px; cursor: pointer; font-weight: bold; transition: all 0.3s;
+    }
+    .btn-danger:hover { background-color: #b71c1c; transform: translateY(-2px); }
+    .btn-disabled {
+        background-color: #ccc; color: #666; border: none; padding: 8px 20px;
+        border-radius: 20px; cursor: not-allowed; font-weight: bold;
+    }
+    .btn-text {
+        background: none; border: none; color: #d32f2f; cursor: pointer;
+        font-size: 14px; text-decoration: underline; padding: 0; margin-left: 10px;
+    }
+    .status-text { color: #2e7d32; font-weight: bold; font-size: 14px; }
+
+    /* --- 个人信息样式 --- */
     .card-body-info { font-size: 15px; line-height: 1.8; color: #555; }
     .info-item { margin-bottom: 10px; }
     .label { color: #8a7326; font-weight: bold; margin-right: 5px; }
     .trial-status-passed { color: #2e7d32; font-weight: bold; }
     .trial-status-failed { color: #c62828; font-weight: bold; }
-    .rate-highlight { display: inline-block; background-color: rgba(212, 175, 55, 0.2); padding: 2px 8px; border-radius: 4px; color: #8a7326; font-weight: bold; }
-    .edit-btn { display: inline-block; margin-top: 15px; padding: 8px 20px; background-color: transparent; border: 1px solid #d4af37; color: #d4af37; text-decoration: none; border-radius: 20px; transition: all 0.3s ease; font-size: 14px; }
+    .rate-highlight {
+        display: inline-block; background-color: rgba(212, 175, 55, 0.2);
+        padding: 2px 8px; border-radius: 4px; color: #8a7326; font-weight: bold;
+    }
+    .edit-btn {
+        display: inline-block; margin-top: 15px; padding: 8px 20px;
+        background-color: transparent; border: 1px solid #d4af37; color: #d4af37;
+        text-decoration: none; border-radius: 20px; transition: all 0.3s ease; font-size: 14px;
+    }
     .edit-btn:hover { background-color: #d4af37; color: #fff; }
+
+    /* --- 社交管理区域 (看自己主页时) --- */
+    .social-management {
+        margin-top: 30px; border-top: 1px dashed #d4af37; padding-top: 20px;
+    }
+    .find-friend-box {
+        background: rgba(255, 255, 255, 0.5); padding: 15px; border-radius: 8px;
+        margin-bottom: 20px; border: 1px dashed #d4af37;
+    }
+    .search-input-group { display: flex; gap: 10px; }
+    .search-input-group input {
+        flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;
+    }
+    .search-input-group button {
+        background: #333; color: #fff; border: none; padding: 0 15px;
+        border-radius: 4px; cursor: pointer;
+    }
+    .friend-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 15px; margin-top: 10px;
+    }
+    .friend-item {
+        text-align: center; cursor: pointer; transition: transform 0.2s;
+    }
+    .friend-item:hover { transform: scale(1.1); }
+    .friend-avatar-small {
+        width: 50px; height: 50px; border-radius: 50%; object-fit: cover;
+        border: 2px solid #d4af37; margin-bottom: 5px;
+    }
+    .friend-name-small {
+        font-size: 12px; color: #555; white-space: nowrap;
+        overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* --- 新增：好友申请通知样式 --- */
+    .notification-box {
+        background: #fffbe6; border: 1px solid #ffe58f; padding: 15px;
+        margin-bottom: 25px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .notification-list { list-style: none; padding: 0; margin: 10px 0 0 0; }
+    .notification-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px;
+    }
+    .notification-item:last-child { border-bottom: none; }
+    .btn-accept-sm {
+        background: #52c41a; color: white; border: none; padding: 4px 10px;
+        border-radius: 3px; cursor: pointer; font-size: 12px; margin-right: 5px;
+    }
+    .btn-accept-sm:hover { background: #389e0d; }
+    .btn-reject-sm {
+        background: #ff4d4f; color: white; border: none; padding: 4px 10px;
+        border-radius: 3px; cursor: pointer; font-size: 12px;
+    }
+    .btn-reject-sm:hover { background: #d9363e; }
 </style>
 
 <div class="profile-page-wrapper">
     <div class="elegant-profile-card">
-        <!-- 头部信息 -->
+        
+        <!-- 1. 新增：如果是自己主页，显示收到的好友申请 -->
+        {% if is_me and pending_requests_in %}
+        <div class="notification-box">
+            <h4 style="margin:0 0 10px 0; color:#ad8b00;">🔔 新朋友通知 ({{ pending_requests_in|length }})</h4>
+            <ul class="notification-list">
+                {% for req in pending_requests_in %}
+                <li class="notification-item">
+                    <span><strong>{{ req.from_user.username }}</strong> 申请加你为好友</span>
+                    <div>
+                        <!-- 通过申请 -->
+                        <form method="post" action="{% url 'main_app:accept_friend' %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="user_id" value="{{ req.from_user.id }}">
+                            <button type="submit" class="btn-accept-sm">通过</button>
+                        </form>
+                        <!-- 拒绝申请 -->
+                        <form method="post" action="{% url 'main_app:reject_friend' %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="user_id" value="{{ req.from_user.id }}">
+                            <button type="submit" class="btn-reject-sm">拒绝</button>
+                        </form>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- 2. 头部信息 -->
         <div class="card-header-row">
             {% if profile.avatar %}
-                <img src="{{ profile.avatar.url }}" alt="Avatar" class="avatar-img">
+            <img src="{{ profile.avatar.url }}" alt="Avatar" class="avatar-img">
             {% else %}
-                <div class="avatar-img" style="background-color: #eee; display: flex; align-items: center; justify-content: center; color: #999;">No Img</div>
+            <div class="avatar-img" style="background-color: #eee; display: flex; align-items: center; justify-content: center; color: #999;">No Img</div>
             {% endif %}
             <div class="user-name-area">
                 <h2>{{ profile_user.username }}</h2>
+                <div class="user-id-display">NO.{{ profile_user.id }}</div>
+                
+                <!-- 3. 好友操作按钮 (只有看别人主页时显示) -->
+                {% if not is_me %}
+                <div class="action-area">
+                    <!-- 情况1：已经是好友 -->
+                    {% if relation_status == 'friends' %}
+                        <div style="display:flex; align-items:center;">
+                            <span class="status-text">🤝 你们已经是好友了</span>
+                            <!-- 删除好友按钮 -->
+                            <form method="post" action="{% url 'main_app:remove_friend' %}" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="user_id" value="{{ profile_user.id }}">
+                                <button type="submit" class="btn-text" onclick="return confirm('确定要删除这位好友吗？')">删除好友</button>
+                            </form>
+                        </div>
+
+                    <!-- 情况2：我发出了申请，等待对方通过 -->
+                    {% elif relation_status == 'pending_sent' %}
+                        <div style="display:flex; align-items:center;">
+                            <button class="btn-disabled" disabled>⏳ 等待验证</button>
+                            <!-- 取消申请按钮 -->
+                            <form method="post" action="{% url 'main_app:cancel_request' %}" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="user_id" value="{{ profile_user.id }}">
+                                <button type="submit" class="btn-text" onclick="return confirm('确定要取消申请吗？')">取消申请</button>
+                            </form>
+                        </div>
+
+                    <!-- 情况3：对方申请了我 (我在对方主页也能看到并通过) -->
+                    {% elif relation_status == 'pending_received' %}
+                        <div style="display:flex; gap:10px;">
+                            <form method="post" action="{% url 'main_app:accept_friend' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="user_id" value="{{ profile_user.id }}">
+                                <button type="submit" class="btn-success">✨ 接受申请</button>
+                            </form>
+                            <form method="post" action="{% url 'main_app:reject_friend' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="user_id" value="{{ profile_user.id }}">
+                                <button type="submit" class="btn-danger">拒绝</button>
+                            </form>
+                        </div>
+
+                    <!-- 情况4：默认状态：添加好友 -->
+                    {% else %}
+                        <button 
+        type="button" 
+        class="btn-primary" 
+        onclick="searchAndAddFriend()"
+        data-user-id="{{ profile_user.id }}"
+        data-username="{{ profile_user.username }}">
+        ➕ 添加为好友
+    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
         </div>
 
-        <!-- 详细信息 -->
+        <!-- 4. 详细信息 -->
         <div class="card-body-info">
             <div class="info-item">
                 <span class="label">个性签名:</span>
@@ -47,9 +268,9 @@
             <div class="info-item">
                 <span class="label">试炼状态:</span>
                 {% if profile.is_wang_member %}
-                    <span class="trial-status-passed">✅ 已通过汪家试炼</span>
+                <span class="trial-status-passed">✅ 已通过汪家试炼</span>
                 {% else %}
-                    <span class="trial-status-failed">❌ 未通过汪家试炼</span>
+                <span class="trial-status-failed">❌ 未通过汪家试炼</span>
                 {% endif %}
             </div>
             {% if profile.is_wang_member %}
@@ -58,114 +279,244 @@
                 <span class="rate-highlight">{{ profile.trial_rate }}</span>
             </div>
             {% endif %}
-
             <hr style="border: 0; border-top: 1px dashed #d4af37; margin: 20px 0; opacity: 0.5;">
-
-            <!-- 1. 记忆训练最佳战绩 (张家) -->
             <div class="info-item">
                 <span class="label">🧠 记忆训练最佳:</span>
                 <span id="memory-best-score" class="rate-highlight">加载中...</span>
             </div>
-
-            <!-- 2. 排雷特训最佳战绩 (汪家) -->
             <div class="info-item">
                 <span class="label">💣 排雷特训最佳:</span>
                 <span id="minesweeper-best-time" class="rate-highlight">加载中...</span>
             </div>
-
-            <!-- 3. 【新增】蛇阵迷踪最佳战绩 (张家) -->
             <div class="info-item">
                 <span class="label">🐍 蛇阵迷踪最佳:</span>
                 <span id="snake-best-score" class="rate-highlight">加载中...</span>
             </div>
-
             {% if is_me %}
-                <a href="{% url 'main_app:edit_profile' %}" class="edit-btn">编辑个人资料</a>
+            <a href="{% url 'main_app:edit_profile' %}" class="edit-btn">编辑个人资料</a>
             {% endif %}
         </div>
+
+        <!-- 5. 社交管理区域 (只有看自己主页时显示) -->
+        {% if is_me %}
+        <div class="social-management">
+            <!-- 查找好友 -->
+            <div class="find-friend-box">
+                <h4 style="margin-top:0; color:#333;">🔍 寻找盗友</h4>
+                <div class="search-input-group">
+                    <input type="text" id="searchInput" placeholder="输入对方 ID 或 用户名...">
+                    <button onclick="searchAndAddFriend()">查找并添加</button>
+                </div>
+                <p id="searchMsg" style="font-size:12px; color:#666; margin-top:5px;"></p>
+            </div>
+            <!-- 好友列表 -->
+            <h4 style="color:#333;">👥 我的好友圈 ({{ friend_count }})</h4>
+            <div class="friend-grid" id="myFriendList">
+                {% for friend in friends_list %}
+                <div class="friend-item" onclick="window.location.href='/profile/{{ friend.username }}/'">
+                    {% if friend.profile.avatar %}
+                    <img src="{{ friend.profile.avatar.url }}" class="friend-avatar-small">
+                    {% else %}
+                    <div class="friend-avatar-small" style="background:#ddd;"></div>
+                    {% endif %}
+                    <div class="friend-name-small">{{ friend.username }}</div>
+                </div>
+                {% empty %}
+                <p style="color:#999; font-size:14px; grid-column: 1/-1;">暂无好友，快去上面搜索添加吧！</p>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // 获取页面上的 DOM 元素
-    const memoryScoreEl = document.getElementById('memory-best-score');
-    const minesweeperTimeEl = document.getElementById('minesweeper-best-time');
-    const snakeScoreEl = document.getElementById('snake-best-score'); // 新增
+    // --- 1. 获取游戏成绩 (完全保留你的原有逻辑) ---
+    document.addEventListener('DOMContentLoaded', function() {
+        const memoryScoreEl = document.getElementById('memory-best-score');
+        const minesweeperTimeEl = document.getElementById('minesweeper-best-time');
+        const snakeScoreEl = document.getElementById('snake-best-score');
+        
+        let targetUsername = "";
+        const nameElement = document.querySelector('.user-name-area h2');
+        if (nameElement) {
+            targetUsername = nameElement.innerText.trim();
+        }
 
-    // 1. 获取当前查看的用户名 (从 h2 标签读取)
-    let targetUsername = "";
-    const nameElement = document.querySelector('.user-name-area h2');
-    if (nameElement) {
-        targetUsername = nameElement.innerText.trim();
+        if (targetUsername) {
+            fetch('/zhang_jia/api/get-memory-score/?username=' + encodeURIComponent(targetUsername))
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (data.score === 99999 || data.score === null) {
+                        memoryScoreEl.innerText = "暂无记录";
+                        memoryScoreEl.style.color = "#888";
+                    } else {
+                        memoryScoreEl.innerText = data.score + " 步";
+                        memoryScoreEl.style.color = "#d4af37";
+                    }
+                } else {
+                    memoryScoreEl.innerText = "-";
+                }
+            }).catch(err => { console.error(err); memoryScoreEl.innerText = "错误"; });
+
+            fetch('/wang_jia/api/get-minesweeper-score/?username=' + encodeURIComponent(targetUsername))
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    minesweeperTimeEl.innerText = data.display_text || "暂无记录";
+                    minesweeperTimeEl.style.color = data.time ? "#d4af37" : "#888";
+                } else {
+                    minesweeperTimeEl.innerText = "需登录后查看";
+                    minesweeperTimeEl.style.color = "#c62828";
+                }
+            }).catch(error => { console.error('扫雷数据 Fetch 错误:', error); minesweeperTimeEl.innerText = "网络错误"; });
+
+            fetch('/zhang_jia/api/get-snake-score/?username=' + encodeURIComponent(targetUsername))
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (data.score === 0 || data.score === null) {
+                        snakeScoreEl.innerText = "暂无记录";
+                        snakeScoreEl.style.color = "#888";
+                    } else {
+                        snakeScoreEl.innerText = data.score + " 分";
+                        snakeScoreEl.style.color = "#d4af37";
+                    }
+                } else {
+                    snakeScoreEl.innerText = "-";
+                }
+            }).catch(error => { console.error('贪吃蛇数据 Fetch 错误:', error); snakeScoreEl.innerText = "网络错误"; });
+        }
+
+        // ==========================================
+        // --- 2. 【新增】好友操作按钮的拦截与确认弹窗 ---
+        // ==========================================
+        // 给所有带有 class="friend-action-btn" 的按钮绑定事件
+        const actionButtons = document.querySelectorAll('.friend-action-btn');
+        
+        actionButtons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault(); // 阻止默认的表单提交或跳转
+                
+                const actionType = this.getAttribute('data-action');
+                const targetUrl = this.getAttribute('data-url');
+                const targetName = this.getAttribute('data-name');
+                
+                let confirmMsg = '';
+                
+                // 根据操作类型设置提示语
+                if (actionType === 'reject') {
+                    confirmMsg = `确定要拒绝 ${targetName} 的好友申请吗？`;
+                } else if (actionType === 'remove') {
+                    confirmMsg = `确定要删除好友 ${targetName} 吗？此操作不可恢复。`;
+                } else if (actionType === 'cancel') {
+                    confirmMsg = `确定要取消向 ${targetName} 发送的申请吗？`;
+                }
+
+                // 弹出原生确认框
+                if (confirm(confirmMsg)) {
+                    // 用户点击“确定”后，查找按钮所在的 form 表单并提交
+                    const form = this.closest('form');
+                    if (form) {
+                        form.action = targetUrl; // 确保表单提交到正确的 URL
+                        form.submit();
+                    }
+                }
+            });
+        });
+    });
+
+function searchAndAddFriend() {
+    // 1. 尝试获取搜索框（仅在搜索页面存在）
+    const searchInput = document.getElementById('searchInput');
+    let targetUserId = null;
+    let targetUsername = null;
+
+    // --- 分支 A: 如果是在个人主页点击 (没有搜索框) ---
+    // 我们通过 event.target 获取点击的那个按钮，然后读取上面存的 data-user-id
+    if (!searchInput) {
+        // 获取触发事件的按钮元素
+        const btn = event.target; 
+        
+        // 从按钮属性中获取 ID 和名字
+        targetUserId = btn.getAttribute('data-user-id');
+        targetUsername = btn.getAttribute('data-username');
+
+        if (!targetUserId) {
+            alert("错误：无法获取用户ID");
+            return;
+        }
+
+        // 直接发起添加请求，跳过搜索步骤
+        sendAddRequest(targetUserId, targetUsername);
+        return; 
     }
 
-    if (!targetUsername) {
-        console.error("无法获取用户名");
+    // --- 分支 B: 如果是在搜索/通用页面点击 (有搜索框) ---
+    const keyword = searchInput.value.trim();
+    const msgBox = document.getElementById('searchMsg'); // 确保页面有这个显示消息的地方，或者去掉这行
+    
+    if (!keyword) {
+        if(msgBox) msgBox.innerText = "请输入内容";
+        else alert("请输入内容");
         return;
     }
 
-    // --- 请求 1: 获取记忆训练成绩 ---
-    fetch('/zhang_jia/api/get-memory-score/?username=' + encodeURIComponent(targetUsername))
-    .then(response => response.json())
+    if(msgBox) msgBox.innerText = "正在查找...";
+
+    // 1. 先搜索用户
+    fetch(`/api/user/search/?q=${encodeURIComponent(keyword)}`)
+    .then(res => res.json())
     .then(data => {
-        if (data.status === 'success') {
-            if (data.score === 99999 || data.score === null) {
-                memoryScoreEl.innerText = "暂无记录";
-                memoryScoreEl.style.color = "#888";
-            } else {
-                memoryScoreEl.innerText = data.score + " 步";
-                memoryScoreEl.style.color = "#d4af37";
+        if (data.status === 'success' && data.user) {
+            if (confirm(`找到用户：${data.user.username}\n是否立即添加？`)) {
+                sendAddRequest(data.user.id, data.user.username);
             }
         } else {
-            memoryScoreEl.innerText = "-";
+            if(msgBox) msgBox.innerText = "未找到该用户";
+        }
+    })
+    .catch(err => console.error(err));
+}
+
+// 封装好的发送请求函数 (复用逻辑)
+function sendAddRequest(userId, username) {
+    // 获取 CSRF Token
+    let csrfToken = '';
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.startsWith('csrftoken=')) {
+            csrfToken = cookie.substring('csrftoken='.length, cookie.length);
+            break;
+        }
+    }
+
+    const formData = new FormData();
+    formData.append('user_id', userId);
+
+    fetch('/api/friend/add/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.status === 'success') {
+            alert("好友申请已发送！");
+            location.reload(); // 刷新页面更新状态
+        } else {
+            alert(d.message || d.msg || "操作失败");
         }
     })
     .catch(err => {
         console.error(err);
-        memoryScoreEl.innerText = "错误";
+        alert("网络错误");
     });
-
-    // --- 请求 2: 获取扫雷成绩 ---
-    fetch('/wang_jia/api/get-minesweeper-score/?username=' + encodeURIComponent(targetUsername))
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            minesweeperTimeEl.innerText = data.display_text || "暂无记录";
-            minesweeperTimeEl.style.color = data.time ? "#d4af37" : "#888";
-        } else {
-            minesweeperTimeEl.innerText = "需登录后查看";
-            minesweeperTimeEl.style.color = "#c62828";
-        }
-    })
-    .catch(error => {
-        console.error('扫雷数据 Fetch 错误:', error);
-        minesweeperTimeEl.innerText = "网络错误";
-    });
-
-    // --- 请求 3: 【新增】获取贪吃蛇成绩 ---
-    // 假设你在 zhang_jia/urls.py 里配置了类似 api/get-snake-score/ 的路由
-    fetch('/zhang_jia/api/get-snake-score/?username=' + encodeURIComponent(targetUsername))
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            if (data.score === 0 || data.score === null) {
-                snakeScoreEl.innerText = "暂无记录";
-                snakeScoreEl.style.color = "#888";
-            } else {
-                snakeScoreEl.innerText = data.score + " 分";
-                snakeScoreEl.style.color = "#d4af37";
-            }
-        } else {
-            snakeScoreEl.innerText = "-";
-        }
-    })
-    .catch(error => {
-        console.error('贪吃蛇数据 Fetch 错误:', error);
-        snakeScoreEl.innerText = "网络错误";
-    });
-
-});
+}
 </script>
-
 {% endblock %}

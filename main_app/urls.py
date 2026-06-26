@@ -24,4 +24,10 @@ urlpatterns = [
     path('delete_entry/<int:entry_id>/', views.delete_entry, name='delete_entry'),
     path('profile/<str:username>/', views.user_profile, name='user_profile'),
     path('users/edit/', views.edit_profile, name='edit_profile'),
+    path('api/friend/add/', views.add_friend, name='add_friend'),
+    path('api/user/search/', views.search_user, name='search_user'),
+    path('accept_friend/', views.accept_friend, name='accept_friend'),
+    path('reject_friend/', views.reject_friend, name='reject_friend'),
+    path('cancel_request/', views.cancel_friend_request, name='cancel_request'),
+    path('remove_friend/', views.remove_friend, name='remove_friend'),
 ]

@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-4ve!0=)k)j830zc__77+j%56!rljs%vo8^7fy^ejl+-jx022rw
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     'accounts',
     'wang_jia',
     'zhang_jia',
+    'channels',
+    'yucun',
 ]
 
 MIDDLEWARE = [
@@ -135,3 +137,19 @@ LOGOUT_REDIRECT_URL = 'main_app:index'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# ASGI 配置
+ASGI_APPLICATION = 'dmbj_project.asgi.application' # 注意：这里要改成你项目根目录的名字，通常是包含 settings.py 的那个文件夹名
+
+# Channels 配置
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
+
+# 在 settings.py 中添加这一行
+CSRF_TRUSTED_ORIGINS = [
+    'https://garrison-unmelodramatic-jeanna.ngrok-free.dev',
+    'http://garrison-unmelodramatic-jeanna.ngrok-free.dev'
+]
