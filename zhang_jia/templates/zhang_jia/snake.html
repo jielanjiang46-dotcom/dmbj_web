@@ -16,20 +16,11 @@
         color: #ccc;
         position: relative; /* 为遮罩层定位做准备 */
     }
-
     h2 { color: #8fbc8f; letter-spacing: 4px; margin-bottom: 5px; }
     .hint { font-size: 14px; color: #888; margin-bottom: 15px; }
-
-    .game-info {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 10px;
-        font-family: monospace;
-        font-size: 16px;
-        color: #a9a9a9;
-    }
+    .game-info { display: flex; justify-content: space-between; margin-bottom: 10px; font-family: monospace; font-size: 16px; color: #a9a9a9; }
     .best-score { color: #d4af37; }
-
+    
     #snake-board {
         background-color: #0d0d0d;
         border: 3px solid #4a5d23;
@@ -42,9 +33,7 @@
         height: auto;
         aspect-ratio: 1 / 1;
     }
-
     .controls { margin-top: 20px; display: flex; justify-content: center; gap: 20px; }
-
     .btn-zhang {
         background-color: #4a5d23;
         color: #fff;
@@ -62,8 +51,9 @@
     /* --- 新增：大厅选择界面的样式 --- */
     #lobby-overlay {
         position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(13, 13, 13, 0.95); /* 深色半透明背景 */
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(13, 13, 13, 0.95);
         z-index: 20;
         display: flex;
         flex-direction: column;
@@ -71,24 +61,12 @@
         align-items: center;
         border: 2px solid #4a5d23;
     }
-
     .lobby-box {
         text-align: center;
         animation: fadeIn 0.5s;
     }
-
-    .lobby-title {
-        font-size: 24px;
-        color: #d4af37;
-        margin-bottom: 30px;
-        border-bottom: 1px solid #4a5d23;
-        padding-bottom: 10px;
-    }
-
-    .mode-select, .role-select {
-        margin-bottom: 20px;
-    }
-
+    .lobby-title { font-size: 24px; color: #d4af37; margin-bottom: 30px; border-bottom: 1px solid #4a5d23; padding-bottom: 10px; }
+    .mode-select, .role-select { margin-bottom: 20px; }
     .select-btn {
         background: transparent;
         border: 1px solid #6b8e23;
@@ -98,20 +76,39 @@
         cursor: pointer;
         transition: all 0.2s;
     }
-
     .select-btn:hover, .select-btn.active {
         background: #4a5d23;
         color: white;
         box-shadow: 0 0 10px #4a5d23;
     }
-
-    #start-multi-btn {
-        margin-top: 20px;
-        background-color: #d4af37;
-        color: #000;
-        font-weight: bold;
-    }
+    #start-multi-btn { margin-top: 20px; background-color: #d4af37; color: #000; font-weight: bold; }
     #start-multi-btn:hover { background-color: #ffd700; }
+
+    /* --- 新增：游戏结束面板样式 --- */
+    #game-over-overlay {
+        display: none; /* 默认隐藏 */
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 150;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+    .game-over-box {
+        background: #1a1a1a;
+        padding: 40px;
+        border: 2px solid #d4af37;
+        text-align: center;
+        border-radius: 8px;
+        box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+    }
+    .game-over-title { color: #d4af37; margin-bottom: 20px; font-size: 28px; }
+    .game-over-msg { color: #ccc; margin-bottom: 30px; font-size: 18px; }
+    .game-over-btns { display: flex; gap: 20px; justify-content: center; }
+    .btn-restart { background: #4a5d23; color: white; border: none; padding: 10px 25px; cursor: pointer; font-size: 16px; }
+    .btn-quit { background: #333; color: #888; border: 1px solid #555; padding: 10px 25px; cursor: pointer; font-size: 16px; }
 
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
 </style>
@@ -133,49 +130,52 @@
         <canvas id="snake-board" width="600" height="600"></canvas>
 
         <!-- ========================================== -->
-<!-- 【最终版】游戏大厅遮罩层 (包含房间系统) -->
-<!-- ========================================== -->
-<div id="lobby-overlay" style="position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.9); z-index: 100; display: flex; justify-content: center; align-items: center; flex-direction: column;">
-    
-    <!-- 这里的 lobby-box 宽度加到了 400px，防止输入框太挤 -->
-    <div class="lobby-box" style="text-align: center; border: 2px solid #4a5d23; padding: 40px; background: #1a1a1a; box-shadow: 0 0 20px #4a5d23; width: 400px; max-width: 90%;">
-        
-        <h2 style="color: #8fbc8f; margin-bottom: 30px; font-family: 'Microsoft YaHei', sans-serif;">选择历练模式</h2>
+        <!-- 1. 游戏大厅遮罩层 -->
+        <!-- ========================================== -->
+        <div id="lobby-overlay">
+            <div class="lobby-box" style="text-align: center; border: 2px solid #4a5d23; padding: 40px; background: #1a1a1a; box-shadow: 0 0 20px #4a5d23; width: 400px; max-width: 90%;">
+                <h2 style="color: #8fbc8f; margin-bottom: 30px; font-family: 'Microsoft YaHei', sans-serif;">选择历练模式</h2>
+                
+                <!-- 模式选择 -->
+                <div class="mode-select">
+                    <button id="btn-mode-single" class="select-btn active" onclick="setMode('single')">🎮 单机历练</button>
+                    <button id="btn-mode-multi" class="select-btn" onclick="setMode('multi')">🌐 多人联机</button>
+                </div>
 
-        <!-- 1. 模式选择 -->
-        <div class="mode-select" style="margin-bottom: 20px;">
-            <button id="btn-mode-single" class="select-btn active" onclick="setMode('single')" style="padding: 10px 20px; margin: 0 5px; cursor: pointer; background: #2c3e50; color: white; border: 1px solid #4a5d23;">🎮 单机历练</button>
-            <button id="btn-mode-multi" class="select-btn" onclick="setMode('multi')" style="padding: 10px 20px; margin: 0 5px; cursor: pointer; background: #2c3e50; color: #888; border: 1px solid #4a5d23;">🌐 多人联机</button>
+                <!-- 联机设置 -->
+                <div id="multi-settings" style="display: none; margin-bottom: 20px; border-top: 1px dashed #444; padding-top: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <input type="text" id="room-input" placeholder="输入房间号 (如: 888)" style="padding: 8px; width: 60%; background: #000; border: 1px solid #4a5d23; color: #fff; text-align: center;">
+                    </div>
+                    <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
+                        <div id="room-error" style="color: #4ade80; margin: 10px 0; font-size: 14px; min-height: 20px;"></div>
+                        <button onclick="createRoom()" style="padding: 5px 15px; background: #4a5d23; color: white; border: none; cursor: pointer;">➕ 创建房间</button>
+                        <button onclick="joinRoom()" style="padding: 5px 15px; background: #2c3e50; color: white; border: 1px solid #4a5d23; cursor: pointer;">🚪 加入房间</button>
+                    </div>
+                    <button id="start-game-btn" class="btn-zhang" onclick="confirmStart()">开启机关</button>
+                </div>
+            </div>
+            <!-- 单机模式开始按钮 -->
+            <button id="start-single-btn" class="btn-zhang" onclick="confirmStart()" style="margin-top:20px;">开启机关</button>
         </div>
 
-        <!-- 2. 联机专属设置 (默认隐藏) -->
-        <div id="multi-settings" style="display: none; margin-bottom: 20px; border-top: 1px dashed #444; padding-top: 20px;">
-            
-            <!-- 房间操作区 -->
-            <div style="margin-bottom: 15px;">
-                <input type="text" id="room-input" placeholder="输入房间号 (如: 888)" style="padding: 8px; width: 60%; background: #000; border: 1px solid #4a5d23; color: #fff; text-align: center;">
+        <!-- ========================================== -->
+        <!-- 2. 游戏结束遮罩层 (新增) -->
+        <!-- ========================================== -->
+        <div id="game-over-overlay">
+            <div class="game-over-box">
+                <h2 id="game-over-title" class="game-over-title">游戏结束</h2>
+                <p id="game-over-msg" class="game-over-msg">你的蛇撞墙了！</p>
+                <div class="game-over-btns">
+                    <button onclick="restartGame()" class="btn-restart">🔄 再来一局</button>
+                    <button onclick="quitToLobby()" class="btn-quit">🏠 退出大厅</button>
+                </div>
             </div>
-            
-            <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
-                <div id="room-error" style="color: #4ade80; margin: 10px 0; font-size: 14px; min-height: 20px;"></div>
-                <button onclick="createRoom()" style="padding: 5px 15px; background: #4a5d23; color: white; border: none; cursor: pointer;">➕ 创建房间</button>
-                <button onclick="joinRoom()" style="padding: 5px 15px; background: #2c3e50; color: white; border: 1px solid #4a5d23; cursor: pointer;">🚪 加入房间</button>
-            </div>
-
-        <!-- 3. 开启按钮 -->
-        <button id="start-game-btn" class="btn-zhang" onclick="confirmStart()" style="margin-top: 10px; padding: 12px 40px; background: #4a5d23; color: white; border: none; font-size: 16px; cursor: pointer; font-weight: bold;">开启机关</button>
-    </div>
-</div>
-
-
-        <!-- 单机模式专属开始按钮 -->
-        <button id="start-single-btn" class="btn-zhang" onclick="confirmStart()" style="margin-top:20px;">开启机关</button>
-    </div>
-</div>
         </div>
+
     </div>
 
-    <!-- 底部控制栏 (仅在单机模式游戏中有用) -->
+    <!-- 底部控制栏 -->
     <div class="controls">
         <button onclick="togglePause()" class="btn-zhang btn-pause" id="pause-btn" disabled>暂停机关</button>
     </div>
@@ -183,321 +183,313 @@
 
 <script>
     // ==========================================
-// 1. 全局变量与配置
-// ==========================================
-const canvas = document.getElementById('snake-board');
-const ctx = canvas.getContext('2d');
-const scoreEl = document.getElementById('score-display');
-const lobbyOverlay = document.getElementById('lobby-overlay');
-const roomStatusEl = document.getElementById('room-status');
-const pauseBtn = document.getElementById('pause-btn');
-const startGameBtn = document.getElementById('start-game-btn');
+    // 1. 全局变量与配置
+    // ==========================================
+    const canvas = document.getElementById('snake-board');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score-display');
+    const lobbyOverlay = document.getElementById('lobby-overlay');
+    const gameOverOverlay = document.getElementById('game-over-overlay');
+    const roomStatusEl = document.getElementById('room-status');
+    const pauseBtn = document.getElementById('pause-btn');
 
-// 游戏参数
-const gridSize = 20;
-const tileCount = canvas.width / gridSize; // 30x30 网格
+    const gridSize = 20;
+    const tileCount = canvas.width / gridSize; // 30x30 网格
 
-// 状态变量
-let gameMode = 'single'; // 'single' or 'multi'
-let playerRole = 'snake'; // 'snake' or 'food' (for multi)
-let roomRoles = new Set(); // 新增：用来记录房间里已有的角色类型
-let socket = null;
-let myPlayerId = null; // 联机时记录自己的ID
+    let gameMode = 'single';
+    let socket = null;
+    let myPlayerId = null; // 【关键】用于标识自己的蛇
+    let currentRoomName = null;
 
-// 单机模式变量
-let snake = [];
-let food = {};
-let dx = 0, dy = 0;
-let score = 0;
-let gameLoop;
-let isGameRunning = false;
-let isPaused = false;
+    // 单机变量
+    let snake = [];
+    let food = {};
+    let dx = 0, dy = 0;
+    let score = 0;
+    let gameLoop;
+    let isGameRunning = false;
+    let isPaused = false;
 
-// 联机模式变量
-let multiGameState = {
-    snakes: [], // [{id: 1, body: [{x,y},...], color: 'green'}, ...]
-    foods: []   // [{x, y}, ...]
-};
+    // 联机变量
+    let multiGameState = { snakes: [], foods: [] };
 
-// ==========================================
-// 2. 大厅交互逻辑 (UI部分)
-// ==========================================
-let currentRoomName = null; // 记录当前加入的房间号
-let ws = null;
-
-function setMode(mode) {
-    gameMode = mode;
-    document.getElementById('btn-mode-single').className = mode === 'single' ? 'select-btn active' : 'select-btn';
-    document.getElementById('btn-mode-multi').className = mode === 'multi' ? 'select-btn active' : 'select-btn';
-    const multiSettings = document.getElementById('multi-settings');
-    const singleBtn = document.getElementById('start-single-btn');
-    const errorEl = document.getElementById('room-error');
-    if (mode === 'multi') {
-        multiSettings.style.display = 'block';
-        singleBtn.style.display = 'none'; // 联机模式隐藏单机开始按钮
-        errorEl.innerText = ''; // 清除错误提示
-    } else {
-        multiSettings.style.display = 'none';
-        singleBtn.style.display = 'inline-block'; // 单机模式显示开始按钮
-    }
-}
-
-function setRole(role) {
-    // 1. 先更新 UI 样式，让用户知道点到了
-    playerRole = role;
-    document.getElementById('btn-role-snake').className = role === 'snake' ? 'select-btn active' : 'select-btn';
-    document.getElementById('btn-role-food').className = role === 'food' ? 'select-btn active' : 'select-btn';
-
-    // 2. 检查连接状态
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        // ✅ 如果连接好了，直接发送
-        ws.send(JSON.stringify({
-            'type': 'set_role',
-            'role': role
-        }));
-        console.log("✅ 角色已发送:", role);
-    } else {
-        // ⚠️ 如果还没连上，不要报错，而是提示用户稍等，或者存入变量等连上后再发
-        console.warn("⚠️ 正在连接服务器... 请一秒后再试，或等待自动重连。");
+    // ==========================================
+    // 2. 大厅交互逻辑
+    // ==========================================
+    function setMode(mode) {
+        gameMode = mode;
+        document.getElementById('btn-mode-single').className = mode === 'single' ? 'select-btn active' : 'select-btn';
+        document.getElementById('btn-mode-multi').className = mode === 'multi' ? 'select-btn active' : 'select-btn';
         
-        // 【进阶技巧】你可以把这次点击存起来，等连上了自动补发
-        window.pendingRole = role; 
-    }
-}
-
-// 创建房间：自动生成一个 4 位随机数，并自动加入
-function createRoom() {
-    const roomName = Math.floor(1000 + Math.random() * 9000).toString();
-    document.getElementById('room-input').value = roomName;
-    currentRoomName = roomName;
-    document.getElementById('room-error').innerText = `✅ 房间 ${roomName} 已创建，正在进入...`;
-}
-
-// 加入房间：校验输入是否为空
-function joinRoom() {
-    const inputVal = document.getElementById('room-input').value.trim();
-    const errorEl = document.getElementById('room-error');
-    if (!inputVal) {
-        errorEl.innerText = "⚠️ 请输入房间号！";
-        return;
-    }
-    currentRoomName = inputVal;
-    errorEl.innerText = `✅ 正在加入房间 ${inputVal}...`;
-}
-
-// 确认开始游戏 (单机/联机统一入口)
-function confirmStart() {
-    // --- 新增：联机模式开始前的检查 ---
-    if (gameMode === 'multi') {
-        // 如果房间里还没有玩家信息，先请求一次
-        if (roomRoles.size === 0 && socket && socket.readyState === WebSocket.OPEN) {
-             socket.send(JSON.stringify({'type': 'get_player_list'}));
-             // 稍等一下再检查，给服务器一点反应时间
-             setTimeout(confirmStart, 500);
-             return;
+        const multiSettings = document.getElementById('multi-settings');
+        const singleBtn = document.getElementById('start-single-btn');
+        
+        if (mode === 'multi') {
+            multiSettings.style.display = 'block';
+            singleBtn.style.display = 'none';
+        } else {
+            multiSettings.style.display = 'none';
+            singleBtn.style.display = 'inline-block';
         }
     }
 
-    // --- 原有的开始游戏逻辑保持不变 ---
-    lobbyOverlay.style.display = 'none';
-    scoreEl.innerText = "当前: 0";
-    if (gameMode === 'single') {
-        roomStatusEl.style.display = 'none';
-        initSinglePlayer();
-    } else {
-        roomStatusEl.style.display = 'inline';
-        roomStatusEl.innerText = `[房间: ${currentRoomName}]`;
-        initMultiPlayer(); // 注意：这里会重新建立连接，onopen 会再次发送 join_game
+    function createRoom() {
+        const roomName = Math.floor(1000 + Math.random() * 9000).toString();
+        document.getElementById('room-input').value = roomName;
+        currentRoomName = roomName;
+        document.getElementById('room-error').innerText = `✅ 房间 ${roomName} 已创建`;
     }
-}
 
-// ==========================================
-// 3. 单机模式逻辑 (保留原有功能)
-// ==========================================
-function initSinglePlayer() {
-    snake = [{x: 10, y: 10}];
-    dx = 1; dy = 0;
-    score = 0;
-    isGameRunning = true;
-    isPaused = false;
-    pauseBtn.disabled = false;
-    pauseBtn.innerText = "暂停机关";
-    pauseBtn.classList.remove('active');
-    placeFood();
-    if(gameLoop) clearInterval(gameLoop);
-    gameLoop = setInterval(updateSinglePlayer, 150);
-}
-
-function updateSinglePlayer() {
-    if (!isGameRunning || isPaused) return;
-    const head = {x: snake[0].x + dx, y: snake[0].y + dy};
-    // 撞墙检测
-    if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
-        return gameOverSingle();
+    function joinRoom() {
+        const inputVal = document.getElementById('room-input').value.trim();
+        if (!inputVal) {
+            document.getElementById('room-error').innerText = "⚠️ 请输入房间号！";
+            return;
+        }
+        currentRoomName = inputVal;
+        document.getElementById('room-error').innerText = `✅ 准备加入 ${inputVal}`;
     }
-    // 撞自己
-    for (let segment of snake) {
-        if (head.x === segment.x && head.y === segment.y) {
+
+    function confirmStart() {
+        lobbyOverlay.style.display = 'none';
+        gameOverOverlay.style.display = 'none'; // 确保结束面板隐藏
+        scoreEl.innerText = "当前: 0";
+        
+        if (gameMode === 'single') {
+            roomStatusEl.style.display = 'none';
+            initSinglePlayer();
+        } else {
+            roomStatusEl.style.display = 'inline';
+            roomStatusEl.innerText = `[房间: ${currentRoomName}]`;
+            initMultiPlayer();
+        }
+    }
+
+    // ==========================================
+    // 3. 单机模式逻辑
+    // ==========================================
+    function initSinglePlayer() {
+        snake = [{x: 10, y: 10}];
+        dx = 1; dy = 0;
+        score = 0;
+        isGameRunning = true;
+        isPaused = false;
+        pauseBtn.disabled = false;
+        placeFood();
+        
+        if(gameLoop) clearInterval(gameLoop);
+        gameLoop = setInterval(updateSinglePlayer, 150);
+    }
+
+    function updateSinglePlayer() {
+        if (!isGameRunning || isPaused) return;
+        const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+
+        // 撞墙或撞自己
+        if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount || snake.some(s => s.x === head.x && s.y === head.y)) {
             return gameOverSingle();
         }
+
+        snake.unshift(head);
+        if (head.x === food.x && head.y === food.y) {
+            score += 10;
+            scoreEl.innerText = `当前: ${score}`;
+            placeFood();
+        } else {
+            snake.pop();
+        }
+        drawSinglePlayer();
     }
-    snake.unshift(head);
-    if (head.x === food.x && head.y === food.y) {
-        score += 10;
-        scoreEl.innerText = `当前: ${score}`;
-        placeFood();
-    } else {
-        snake.pop();
-    }
-    drawSinglePlayer();
-}
 
-function drawSinglePlayer() {
-    ctx.fillStyle = '#0d0d0d';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // 画食物
-    ctx.fillStyle = '#d4af37';
-    ctx.beginPath();
-    ctx.arc(food.x * gridSize + gridSize/2, food.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI*2);
-    ctx.fill();
-    // 画蛇
-    snake.forEach((seg, index) => {
-        ctx.fillStyle = index === 0 ? '#8fbc8f' : '#4a5d23';
-        ctx.fillRect(seg.x * gridSize, seg.y * gridSize, gridSize - 2, gridSize - 2);
-    });
-}
-
-function placeFood() {
-    food = { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) };
-    for(let s of snake) {
-        if(s.x === food.x && s.y === food.y) placeFood();
-    }
-}
-
-function togglePause() {
-    if(gameMode !== 'single' || !isGameRunning) return;
-    isPaused = !isPaused;
-    pauseBtn.innerText = isPaused ? "继续机关" : "暂停机关";
-    pauseBtn.classList.toggle('active');
-}
-
-function gameOverSingle() {
-    isGameRunning = false;
-    clearInterval(gameLoop);
-    alert(`单机模式结束！得分: ${score}`);
-    lobbyOverlay.style.display = 'flex';
-}
-
-// ==========================================
-// 4. 联机模式逻辑 (WebSocket)
-// ==========================================
-function initMultiPlayer() {
-    // 【修改】使用刚才获取的房间号
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    socket = new WebSocket(wsProtocol + window.location.host + '/ws/snake/' + currentRoomName + '/');
-
-    socket.onopen = function(e) {
-        console.log("✅ 已连接到联机战场，房间号:", currentRoomName);
-        // 【修改】发送加入指令时，顺便把玩家身份带上
-        const username = "{{ user.username }}" || "Guest";
-        socket.send(JSON.stringify({
-            'type': 'set_role',
-            'role': playerRole,
-            'username': username // 把账号名传给后端！
-        }));
-    };
-
-    // ... 后面的 onmessage 和 onclose 保持不变
-    socket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
+    function drawSinglePlayer() {
+        ctx.fillStyle = '#0d0d0d';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // --- 新增：监听服务器发来的玩家列表 ---
-        if (data.type === 'player_list') {
-            roomRoles = new Set(data.roles);
-            console.log("当前房间角色:", roomRoles);
-        }
-
-        if (data.type === 'game_state') {
-            multiGameState.snakes = data.snakes;
-            multiGameState.foods = data.foods;
-            myPlayerId = data.my_id; // 记录自己的ID，用于高亮
-            drawMultiPlayer();
-        }
-        if (data.type === 'player_died') {
-            alert(data.message);
-            lobbyOverlay.style.display = 'flex';
-            socket.close();
-        }
-    };
-
-    socket.onclose = function(e) {
-        console.error('❌ 联机断开');
-    };
-}
-
-function drawMultiPlayer() {
-    ctx.fillStyle = '#0d0d0d';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // 画所有食物
-    ctx.fillStyle = '#d4af37';
-    multiGameState.foods.forEach(f => {
+        // 画食物
+        ctx.fillStyle = '#d4af37';
         ctx.beginPath();
-        ctx.arc(f.x * gridSize + gridSize/2, f.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI*2);
+        ctx.arc(food.x * gridSize + gridSize/2, food.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI*2);
         ctx.fill();
-    });
-    // 画所有蛇
-    multiGameState.snakes.forEach(s => {
-        // 如果是自己，颜色高亮
-        ctx.fillStyle = (s.id === myPlayerId) ? '#8fbc8f' : '#4a5d23';
-        s.body.forEach(seg => {
+
+        // 画蛇 (单机模式默认高亮)
+        snake.forEach((seg, index) => {
+            ctx.fillStyle = index === 0 ? '#8fbc8f' : '#4a5d23';
             ctx.fillRect(seg.x * gridSize, seg.y * gridSize, gridSize - 2, gridSize - 2);
         });
+    }
+
+    function placeFood() {
+        food = { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) };
+        for(let s of snake) { if(s.x === food.x && s.y === food.y) placeFood(); }
+    }
+
+    function togglePause() {
+        if(gameMode !== 'single' || !isGameRunning) return;
+        isPaused = !isPaused;
+        pauseBtn.innerText = isPaused ? "继续机关" : "暂停机关";
+    }
+
+    function gameOverSingle() {
+        isGameRunning = false;
+        clearInterval(gameLoop);
+        showGameOverPanel(`单机模式结束！得分: ${score}`);
+    }
+
+    // ==========================================
+    // 4. 联机模式逻辑
+    // ==========================================
+    function initMultiPlayer() {
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        socket = new WebSocket(wsProtocol + window.location.host + '/ws/snake/' + currentRoomName + '/');
+
+        socket.onopen = function(e) {
+            console.log("✅ 已连接到联机战场");
+        };
+
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            
+            if (data.type === 'update_game') {
+                multiGameState.snakes = data.snakes;
+                multiGameState.foods = data.foods;
+                
+                // 【关键】获取自己的ID
+                if (data.my_id) {
+                    myPlayerId = data.my_id;
+                }
+                
+                drawMultiPlayer();
+            }
+            
+            if (data.type === 'game_over') {
+                showGameOverPanel(data.message);
+            }
+        };
+
+        socket.onclose = function(e) {
+            console.log("❌ 连接断开");
+        };
+    }
+
+    function drawMultiPlayer() {
+        ctx.fillStyle = '#0d0d0d';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 画食物
+        ctx.fillStyle = '#d4af37';
+        multiGameState.foods.forEach(f => {
+            ctx.beginPath();
+            ctx.arc(f.x * gridSize + gridSize/2, f.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI*2);
+            ctx.fill();
+        });
+
+        // 画蛇
+        multiGameState.snakes.forEach(s => {
+            // 【核心逻辑】判断是不是自己的蛇
+            // 注意：后端传来的 id 可能是数字，myPlayerId 可能是字符串，所以用 == 而不是 ===
+            const isMySnake = (s.id == myPlayerId);
+            
+            // 自己的蛇高亮，别人的蛇暗色
+            ctx.fillStyle = isMySnake ? '#8fbc8f' : '#4a5d23';
+            
+            s.body.forEach(seg => {
+                ctx.fillRect(seg.x * gridSize, seg.y * gridSize, gridSize - 2, gridSize - 2);
+            });
+
+            // 在自己的蛇头上画个“我”字
+            if (isMySnake && s.body.length > 0) {
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px Arial';
+                ctx.fillText("我", s.body[0].x * gridSize, s.body[0].y * gridSize - 5);
+            }
+        });
+    }
+
+    // ==========================================
+    // 5. 游戏结束面板逻辑
+    // ==========================================
+    function showGameOverPanel(message) {
+        isGameRunning = false; // 停止本地游戏循环
+        const overlay = document.getElementById('game-over-overlay');
+        const msgEl = document.getElementById('game-over-msg');
+        
+        msgEl.innerText = message || "游戏结束";
+        overlay.style.display = 'flex'; // 显示遮罩
+    }
+
+    function restartGame() {
+        const overlay = document.getElementById('game-over-overlay');
+        overlay.style.display = 'none'; // 隐藏遮罩
+        
+        if (gameMode === 'single') {
+            initSinglePlayer(); // 单机：直接重新初始化
+        } else {
+            // 联机：通知后端重置
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                 socket.send(JSON.stringify({ 'type': 'restart' }));
+                 // 前端状态会在下一次 onmessage 中自动更新
+                 isGameRunning = true;
+            }
+        }
+    }
+
+    function quitToLobby() {
+        const overlay = document.getElementById('game-over-overlay');
+        overlay.style.display = 'none';
+        
+        if (gameMode === 'multi' && socket) {
+            socket.close(); // 关闭 WebSocket 连接
+            socket = null;
+        }
+        
+        // 清理画布
+        ctx.fillStyle = '#0d0d0d';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 回到初始的大厅界面
+        lobbyOverlay.style.display = 'flex';
+        roomStatusEl.style.display = 'none';
+        pauseBtn.disabled = true;
+    }
+
+
+    document.addEventListener('keydown', function(e) {
+        // 防止按键时页面滚动
+        if(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].indexOf(e.code) > -1) {
+            e.preventDefault();
+        }
+
+        // 如果游戏没在运行，或者暂停了，就不响应方向键
+        if (!isGameRunning || isPaused) return;
+
+        // 单机模式控制
+        if (gameMode === 'single') {
+            if (e.key === 'ArrowUp' || e.key === 'w') {
+                if (dy !== 1) { dx = 0; dy = -1; }
+            } else if (e.key === 'ArrowDown' || e.key === 's') {
+                if (dy !== -1) { dx = 0; dy = 1; }
+            } else if (e.key === 'ArrowLeft' || e.key === 'a') {
+                if (dx !== 1) { dx = -1; dy = 0; }
+            } else if (e.key === 'ArrowRight' || e.key === 'd') {
+                if (dx !== -1) { dx = 1; dy = 0; }
+            }
+        } 
+        // 联机模式控制
+        else if (gameMode === 'multi' && socket && socket.readyState === WebSocket.OPEN) {
+            let direction = '';
+            if (e.key === 'ArrowUp' || e.key === 'w') direction = 'up';
+            else if (e.key === 'ArrowDown' || e.key === 's') direction = 'down';
+            else if (e.key === 'ArrowLeft' || e.key === 'a') direction = 'left';
+            else if (e.key === 'ArrowRight' || e.key === 'd') direction = 'right';
+
+            if (direction) {
+                socket.send(JSON.stringify({
+                    'type': 'move',
+                    'direction': direction
+                }));
+            }
+        }
     });
-}
 
-// ==========================================
-// 5. 统一的键盘监听 (核心)
-// ==========================================
-document.addEventListener('keydown', e => {
-    // 如果在暂停状态，不处理
-    if (isPaused) return;
-    
-    let newDx = dx, newDy = dy;
-    let moved = false;
-    switch(e.key) {
-        case 'ArrowUp': case 'w': case 'W':
-            if (dy === 0) { newDx = 0; newDy = -1; moved = true; }
-            break;
-        case 'ArrowDown': case 's': case 'S':
-            if (dy === 0) { newDx = 0; newDy = 1; moved = true; }
-            break;
-        case 'ArrowLeft': case 'a': case 'A':
-            if (dx === 0) { newDx = -1; newDy = 0; moved = true; }
-            break;
-        case 'ArrowRight': case 'd': case 'D':
-            if (dx === 0) { newDx = 1; newDy = 0; moved = true; }
-            break;
-    }
-    if (!moved) return;
-
-    // 单机模式：直接修改本地变量
-    if (gameMode === 'single' && isGameRunning) {
-        dx = newDx; dy = newDy;
-    }
-
-    // --- 修改：联机模式，无论是蛇还是信物，都可以发送移动指令 ---
-    if (gameMode === 'multi' && socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({
-            'type': 'move',
-            // 告诉服务器，这是哪个角色在移动
-            'role': playerRole, 
-            'direction': newDx === 0 ? (newDy === -1 ? 'up' : 'down') : (newDx === -1 ? 'left' : 'right')
-        }));
-    }
-});
-
-// 初始绘制黑底
-ctx.fillStyle = '#0d0d0d';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
 </script>
 {% endblock %}
