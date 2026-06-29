@@ -157,17 +157,10 @@
             </div>
             
             <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
+                <div id="room-error" style="color: #4ade80; margin: 10px 0; font-size: 14px; min-height: 20px;"></div>
                 <button onclick="createRoom()" style="padding: 5px 15px; background: #4a5d23; color: white; border: none; cursor: pointer;">➕ 创建房间</button>
                 <button onclick="joinRoom()" style="padding: 5px 15px; background: #2c3e50; color: white; border: 1px solid #4a5d23; cursor: pointer;">🚪 加入房间</button>
             </div>
-
-            <!-- 角色选择 -->
-            <p style="font-size: 12px; color: #888; margin-bottom: 10px;">选择你的化身：</p>
-            <div>
-                <button id="btn-role-snake" class="select-btn active" onclick="setRole('snake')" style="padding: 8px 15px; margin: 0 5px; background: #2c3e50; color: white; border: 1px solid #4a5d23;">🐍 成为蛇</button>
-                <button id="btn-role-food" class="select-btn" onclick="setRole('food')" style="padding: 8px 15px; margin: 0 5px; background: #2c3e50; color: #888; border: 1px solid #4a5d23;">🍎 成为信物</button>
-            </div>
-        </div>
 
         <!-- 3. 开启按钮 -->
         <button id="start-game-btn" class="btn-zhang" onclick="confirmStart()" style="margin-top: 10px; padding: 12px 40px; background: #4a5d23; color: white; border: none; font-size: 16px; cursor: pointer; font-weight: bold;">开启机关</button>
@@ -250,9 +243,26 @@ function setMode(mode) {
 }
 
 function setRole(role) {
+    // 1. 先更新 UI 样式，让用户知道点到了
     playerRole = role;
     document.getElementById('btn-role-snake').className = role === 'snake' ? 'select-btn active' : 'select-btn';
     document.getElementById('btn-role-food').className = role === 'food' ? 'select-btn active' : 'select-btn';
+
+    // 2. 检查连接状态
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        // ✅ 如果连接好了，直接发送
+        ws.send(JSON.stringify({
+            'type': 'set_role',
+            'role': role
+        }));
+        console.log("✅ 角色已发送:", role);
+    } else {
+        // ⚠️ 如果还没连上，不要报错，而是提示用户稍等，或者存入变量等连上后再发
+        console.warn("⚠️ 正在连接服务器... 请一秒后再试，或等待自动重连。");
+        
+        // 【进阶技巧】你可以把这次点击存起来，等连上了自动补发
+        window.pendingRole = role; 
+    }
 }
 
 // 创建房间：自动生成一个 4 位随机数，并自动加入
@@ -261,8 +271,6 @@ function createRoom() {
     document.getElementById('room-input').value = roomName;
     currentRoomName = roomName;
     document.getElementById('room-error').innerText = `✅ 房间 ${roomName} 已创建，正在进入...`;
-    // 延迟 0.5 秒让玩家看到提示，然后开始游戏
-    setTimeout(() => confirmStart(), 500);
 }
 
 // 加入房间：校验输入是否为空
@@ -275,7 +283,6 @@ function joinRoom() {
     }
     currentRoomName = inputVal;
     errorEl.innerText = `✅ 正在加入房间 ${inputVal}...`;
-    setTimeout(() => confirmStart(), 500);
 }
 
 // 确认开始游戏 (单机/联机统一入口)
@@ -288,12 +295,6 @@ function confirmStart() {
              // 稍等一下再检查，给服务器一点反应时间
              setTimeout(confirmStart, 500);
              return;
-        }
-
-        // 检查是否同时存在蛇和信物
-        if (!roomRoles.has('snake') || !roomRoles.has('food')) {
-            alert("⚠️ 游戏无法开始！房间里必须至少有一位玩家选择【成为蛇】，也至少有一位玩家选择【成为信物】。");
-            return; // 中断函数，不开始游戏
         }
     }
 
@@ -400,7 +401,7 @@ function initMultiPlayer() {
         // 【修改】发送加入指令时，顺便把玩家身份带上
         const username = "{{ user.username }}" || "Guest";
         socket.send(JSON.stringify({
-            'type': 'join_game',
+            'type': 'set_role',
             'role': playerRole,
             'username': username // 把账号名传给后端！
         }));

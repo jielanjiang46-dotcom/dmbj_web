@@ -1,6 +1,84 @@
 {% extends 'main_app/base.html' %}
 
 {% block content %}
+<!-- 首页专属样式直接写在这里 -->
+<style>
+    /* 那个漂亮的黑色卡片 */
+    .bronze-card {
+        background-color: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        width: 100%;
+        max-width: 500px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    /* 标题 */
+    .bronze-title {
+        font-size: 24px;
+        margin-bottom: 30px;
+        letter-spacing: 2px;
+        border-bottom: 1px solid #444;
+        padding-bottom: 15px;
+    }
+
+    /* 诗句样式 */
+    .poem-text {
+        font-style: italic;
+        color: #aaa;
+        line-height: 1.8;
+        margin-bottom: 30px;
+        font-size: 16px;
+    }
+
+    /* 登录表单区域 */
+    .login-area {
+        margin-top: 20px;
+        border-top: 1px dashed #444;
+        padding-top: 20px;
+    }
+
+    /* 输入框样式 */
+    .form-input {
+        width: 90%;
+        padding: 10px;
+        margin-bottom: 10px;
+        background-color: #333;
+        border: 1px solid #555;
+        color: white;
+        border-radius: 4px;
+    }
+
+    /* 按钮样式 - 重点！青色发光感 */
+    .btn-enter {
+        display: inline-block;
+        padding: 12px 30px;
+        background-color: transparent;
+        border: 1px solid #4db6ac;
+        color: #4db6ac;
+        text-decoration: none;
+        border-radius: 25px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        font-size: 16px;
+        margin-top: 10px;
+    }
+
+    .btn-enter:hover {
+        background-color: #4db6ac;
+        color: #000;
+        box-shadow: 0 0 10px #4db6ac;
+    }
+
+    /* 欢迎语样式 */
+    .welcome-text {
+        font-size: 18px;
+        color: #fff;
+        margin-bottom: 20px;
+    }
+</style>
 
 <div class="bronze-card">
 
@@ -11,7 +89,6 @@
             桃李春风一杯酒，<br>江湖夜雨十年灯。<br><br>
             我们只是，好久不见。
         </p>
-        <!-- 点击进入导航页的按钮 -->
         <a href="{% url 'main_app:navigation' %}" class="btn-enter">
             点击进入青铜门，探索终极的秘密
         </a>
@@ -24,14 +101,11 @@
             <span style="font-size: 0.9em; color: #666;">我们只是，好久不见。</span>
         </p>
 
-        <!-- 登录表单 -->
         <div class="login-area">
             <form action="{% url 'accounts:login' %}" method="post">
                 {% csrf_token %}
-                <!-- 简单的用户名密码输入框，你可以根据 form 变量调整 -->
                 <input type="text" name="username" placeholder="请输入稻米代号 (用户名)" class="form-input" required>
                 <input type="password" name="password" placeholder="请输入通关密语 (密码)" class="form-input" required>
-
                 <button type="submit" class="btn-enter">
                     验证身份，进入青铜门
                 </button>
@@ -43,5 +117,4 @@
     {% endif %}
 
 </div>
-
 {% endblock %}

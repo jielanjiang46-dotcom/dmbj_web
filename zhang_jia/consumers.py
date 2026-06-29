@@ -23,7 +23,7 @@ class SnakeConsumer(AsyncWebsocketConsumer):
             GAME_ROOMS[self.room_name] = {
                 'snakes': [], 
                 'foods': [],
-                'players': {}, # 记录玩家ID和角色的映射 {'channel_name': 'snake'}
+                'players': {}, 
                 'loop_task': None
             }
             print(f"🆕 创建新房间: {self.room_name}")
@@ -47,24 +47,38 @@ class SnakeConsumer(AsyncWebsocketConsumer):
             if self.channel_name in room_data['players']:
                 del room_data['players'][self.channel_name]
             
+            # 移除对应的蛇
             room_data['snakes'] = [s for s in room_data['snakes'] if s['id'] != self.channel_name]
+            
+            # 【修复点】如果房间里没人了，清理掉房间数据，防止内存泄漏
+            if not room_data['players']:
+                if room_data['loop_task'] and not room_data['loop_task'].done():
+                    room_data['loop_task'].cancel()
+                del GAME_ROOMS[self.room_name]
+                print(f"🧹 房间 {self.room_name} 已清空并销毁")
 
     async def receive(self, text_data):
         data = json.loads(text_data)
         action = data.get('type')
+        room_data = GAME_ROOMS.get(self.room_name)
 
-        # 1. 玩家加入房间
-        if action == 'join_game':
-            role = data.get('role', 'snake')
-            player_id = self.channel_name 
+        if not room_data: 
+            return
+
+        # 1. 玩家加入/设置身份
+        if action == 'set_role':
+            username = data.get('username', 'Guest') 
+            player_id = self.channel_name
             
-            room_data = GAME_ROOMS[self.room_name]
+            # 记录玩家信息
+            room_data['players'][player_id] = {
+                'username': username,
+                'score': 0
+            }
             
-            # 记录玩家角色
-            room_data['players'][player_id] = role
-            
-            # 如果是蛇，初始化位置
-            if role == 'snake':
+            # 如果这条蛇还不存在，就创建它
+            existing = [s for s in room_data['snakes'] if s['id'] == player_id]
+            if not existing:
                 new_snake = {
                     'id': player_id,
                     'body': [{'x': random.randint(5, 25), 'y': random.randint(5, 25)}],
@@ -73,33 +87,14 @@ class SnakeConsumer(AsyncWebsocketConsumer):
                 }
                 room_data['snakes'].append(new_snake)
             
-            # 立即发送一次当前状态给新进来的玩家
-            await self.send_state()
+            print(f"🐍 玩家 {username} 已加入战场")
 
-        # 2. 【核心修改】检查是否可以开始游戏
-        elif action == 'check_start':
-            room_data = GAME_ROOMS[self.room_name]
-            roles = list(room_data['players'].values())
-            
-            # 判断房间里是否同时存在 'snake' 和 'food'
-            can_start = 'snake' in roles and 'food' in roles
-            
-            # 将检查结果发回给请求的客户端
-            await self.send(text_data=json.dumps({
-                'type': 'start_check_result',
-                'can_start': can_start,
-                'message': '可以开始！' if can_start else '还需要一个信物或蛇才能开始！'
-            }))
-
-        # 3. 玩家移动
+        # 2. 玩家移动
         elif action == 'move':
             direction = data.get('direction')
-            room_data = GAME_ROOMS[self.room_name]
-            
-            # 找到当前玩家并更新方向
             for snake in room_data['snakes']:
+                # 只有活着的、且ID匹配的蛇才能移动
                 if snake['id'] == self.channel_name and snake['alive']:
-                    # 防止直接掉头
                     if direction == 'up' and snake['dy'] != 1:
                         snake['dx'], snake['dy'] = 0, -1
                     elif direction == 'down' and snake['dy'] != -1:
@@ -109,44 +104,87 @@ class SnakeConsumer(AsyncWebsocketConsumer):
                     elif direction == 'right' and snake['dx'] != -1:
                         snake['dx'], snake['dy'] = 1, 0
 
+    async def broadcast_state(self, event):
+        """
+        【新增】处理来自 group_send 的广播消息
+        将后端计算好的状态发送给前端 WebSocket
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'update_game',  # 前端通过这个 type 识别是游戏画面更新
+            'snakes': event['snakes'],
+            'foods': event['foods']
+        }))
+
+    async def end_game(self, room_name):
+        """
+        处理游戏结束逻辑
+        """
+        print(f"🏁 房间 {room_name} 游戏结束")
+        
+        # 1. 通知所有玩家游戏结束了
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'game_over_message', # 这里定义一个新的消息类型
+                'message': 'Game Over! All snakes are dead.'
+            }
+        )
+
+    async def game_over_message(self, event):
+        """
+        接收 game_over_message 并发送给前端
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'game_over', # 前端收到这个 type 就可以弹出“游戏结束”界面
+            'message': event['message']
+        }))
+
     async def game_loop(self, room_name):
-        """
-        这是服务器的核心心跳：每 0.15 秒执行一次物理计算
-        """
         while True:
-            await asyncio.sleep(0.15) # 游戏速度控制
+            await asyncio.sleep(0.15) 
             
+            # 检查房间是否还存在
             if room_name not in GAME_ROOMS:
                 break
                 
             room_data = GAME_ROOMS[room_name]
-            grid_size = 30 # 对应前端的 tileCount
-            
+            grid_size = 30 
+
             # 1. 移动所有蛇
-            for snake in room_data['snakes']:
-                if not snake['alive']: continue
-                
-                head = snake['body'][0]
-                new_head = {'x': head['x'] + snake['dx'], 'y': head['y'] + snake['dy']}
-                
-                # 2. 碰撞检测 (撞墙)
-                if new_head['x'] < 0 or new_head['x'] >= grid_size or \
-                   new_head['y'] < 0 or new_head['y'] >= grid_size:
-                    snake['alive'] = False
-                    continue
+            # 【优化】先检查有没有蛇，避免空列表操作
+            if room_data['snakes']:
+                for snake in room_data['snakes']:
+                    if not snake['alive']: continue
                     
-                snake['body'].insert(0, new_head)
-                
-                # 3. 吃食物检测
-                ate_food = False
-                for i, food in enumerate(room_data['foods']):
-                    if new_head['x'] == food['x'] and new_head['y'] == food['y']:
-                        room_data['foods'].pop(i)
-                        ate_food = True
-                        break
-                
-                if not ate_food:
-                    snake['body'].pop()
+                    head = snake['body'][0]
+                    new_head = {'x': head['x'] + snake['dx'], 'y': head['y'] + snake['dy']}
+                    
+                    # 2. 碰撞检测 (撞墙)
+                    if new_head['x'] < 0 or new_head['x'] >= grid_size or \
+                       new_head['y'] < 0 or new_head['y'] >= grid_size:
+                        snake['alive'] = False
+                        continue
+                        
+                    snake['body'].insert(0, new_head)
+                    
+                    # 3. 吃食物检测
+                    ate_food = False
+                    # 使用倒序遍历或者 copy 列表来安全删除，或者直接判断索引
+                    # 这里为了简单保持原逻辑，但注意 pop(i) 在循环中可能跳过元素，
+                    # 不过因为吃到就 break，所以没问题。
+                    for i, food in enumerate(room_data['foods']):
+                        if new_head['x'] == food['x'] and new_head['y'] == food['y']:
+                            room_data['foods'].pop(i)
+                            ate_food = True
+                            
+                            # 👑 吃食物加分
+                            player_id = snake['id']
+                            if player_id in room_data['players']:
+                                room_data['players'][player_id]['score'] += 1
+                            break
+                    
+                    if not ate_food:
+                        snake['body'].pop()
             
             # 4. 补充食物
             while len(room_data['foods']) < 5:
@@ -155,7 +193,13 @@ class SnakeConsumer(AsyncWebsocketConsumer):
                     'y': random.randint(0, grid_size - 1)
                 })
 
-            # 5. 广播最新状态给房间内所有人
+            # 🏁 判断游戏是否结束（所有蛇都死了）
+            alive_snakes = [s for s in room_data['snakes'] if s['alive']]
+            if len(alive_snakes) == 0 and len(room_data['snakes']) > 0:
+                await self.end_game(room_name)
+                break  # 游戏结束，跳出循环
+
+            # 5. 广播最新状态
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -164,22 +208,3 @@ class SnakeConsumer(AsyncWebsocketConsumer):
                     'foods': room_data['foods']
                 }
             )
-
-    async def broadcast_state(self, event):
-        """接收 loop 发来的指令，转发给 WebSocket 客户端"""
-        await self.send(text_data=json.dumps({
-            'type': 'game_state',
-            'snakes': event['snakes'],
-            'foods': event['foods'],
-            'my_id': self.channel_name
-        }))
-
-    async def send_state(self):
-        """辅助方法：单独给某个人发一次状态"""
-        room_data = GAME_ROOMS[self.room_name]
-        await self.send(text_data=json.dumps({
-            'type': 'game_state',
-            'snakes': room_data['snakes'],
-            'foods': room_data['foods'],
-            'my_id': self.channel_name
-        }))
