@@ -143,7 +143,7 @@ class SnakeConsumer(AsyncWebsocketConsumer):
         print(f"🔄 游戏循环正式开始: {room_name}")
         try:
             while True:
-                await asyncio.sleep(0.3) 
+                await asyncio.sleep(0.2) 
                 
                 # 1. 安全检查：房间还在吗？
                 if room_name not in GAME_ROOMS:

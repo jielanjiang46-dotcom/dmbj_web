@@ -182,314 +182,354 @@
 </div>
 
 <script>
-    // ==========================================
-    // 1. 全局变量与配置
-    // ==========================================
-    const canvas = document.getElementById('snake-board');
-    const ctx = canvas.getContext('2d');
-    const scoreEl = document.getElementById('score-display');
-    const lobbyOverlay = document.getElementById('lobby-overlay');
-    const gameOverOverlay = document.getElementById('game-over-overlay');
-    const roomStatusEl = document.getElementById('room-status');
-    const pauseBtn = document.getElementById('pause-btn');
+// ==========================================
+// 1. 全局变量与配置
+// ==========================================
+const canvas = document.getElementById('snake-board');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score-display');
+const lobbyOverlay = document.getElementById('lobby-overlay');
+const gameOverOverlay = document.getElementById('game-over-overlay');
+const roomStatusEl = document.getElementById('room-status');
+const pauseBtn = document.getElementById('pause-btn');
+const gridSize = 20;
+const tileCount = canvas.width / gridSize; // 30x30 网格
 
-    const gridSize = 20;
-    const tileCount = canvas.width / gridSize; // 30x30 网格
+let gameMode = 'single';
+let socket = null;
+let myPlayerId = null; // 【关键】用于标识自己的蛇
+let currentRoomName = null;
 
-    let gameMode = 'single';
-    let socket = null;
-    let myPlayerId = null; // 【关键】用于标识自己的蛇
-    let currentRoomName = null;
+// 单机变量
+let snake = [];
+let food = {};
+let dx = 0, dy = 0;
+let score = 0;
+let gameLoop;
+let isGameRunning = false;
+let isPaused = false;
 
-    // 单机变量
-    let snake = [];
-    let food = {};
-    let dx = 0, dy = 0;
-    let score = 0;
-    let gameLoop;
-    let isGameRunning = false;
-    let isPaused = false;
+// 联机变量
+let multiGameState = { snakes: [], foods: [] };
 
-    // 联机变量
-    let multiGameState = { snakes: [], foods: [] };
-
-    // ==========================================
-    // 2. 大厅交互逻辑
-    // ==========================================
-    function setMode(mode) {
-        gameMode = mode;
-        document.getElementById('btn-mode-single').className = mode === 'single' ? 'select-btn active' : 'select-btn';
-        document.getElementById('btn-mode-multi').className = mode === 'multi' ? 'select-btn active' : 'select-btn';
-        
-        const multiSettings = document.getElementById('multi-settings');
-        const singleBtn = document.getElementById('start-single-btn');
-        
-        if (mode === 'multi') {
-            multiSettings.style.display = 'block';
-            singleBtn.style.display = 'none';
-        } else {
-            multiSettings.style.display = 'none';
-            singleBtn.style.display = 'inline-block';
-        }
+// ==========================================
+// 2. 大厅交互逻辑
+// ==========================================
+function setMode(mode) {
+    gameMode = mode;
+    document.getElementById('btn-mode-single').className = mode === 'single' ? 'select-btn active' : 'select-btn';
+    document.getElementById('btn-mode-multi').className = mode === 'multi' ? 'select-btn active' : 'select-btn';
+    const multiSettings = document.getElementById('multi-settings');
+    const singleBtn = document.getElementById('start-single-btn');
+    if (mode === 'multi') {
+        multiSettings.style.display = 'block';
+        singleBtn.style.display = 'none';
+    } else {
+        multiSettings.style.display = 'none';
+        singleBtn.style.display = 'inline-block';
     }
+}
 
-    function createRoom() {
-        const roomName = Math.floor(1000 + Math.random() * 9000).toString();
-        document.getElementById('room-input').value = roomName;
-        currentRoomName = roomName;
-        document.getElementById('room-error').innerText = `✅ 房间 ${roomName} 已创建`;
+function createRoom() {
+    const roomName = Math.floor(1000 + Math.random() * 9000).toString();
+    document.getElementById('room-input').value = roomName;
+    currentRoomName = roomName;
+    document.getElementById('room-error').innerText = `✅ 房间 ${roomName} 已创建`;
+}
+
+function joinRoom() {
+    const inputVal = document.getElementById('room-input').value.trim();
+    if (!inputVal) {
+        document.getElementById('room-error').innerText = "⚠️ 请输入房间号！";
+        return;
     }
+    currentRoomName = inputVal;
+    document.getElementById('room-error').innerText = `✅ 准备加入 ${inputVal}`;
+}
 
-    function joinRoom() {
-        const inputVal = document.getElementById('room-input').value.trim();
-        if (!inputVal) {
-            document.getElementById('room-error').innerText = "⚠️ 请输入房间号！";
-            return;
-        }
-        currentRoomName = inputVal;
-        document.getElementById('room-error').innerText = `✅ 准备加入 ${inputVal}`;
+function confirmStart() {
+    lobbyOverlay.style.display = 'none';
+    gameOverOverlay.style.display = 'none'; // 确保结束面板隐藏
+    scoreEl.innerText = "当前: 0";
+    if (gameMode === 'single') {
+        roomStatusEl.style.display = 'none';
+        initSinglePlayer();
+    } else {
+        roomStatusEl.style.display = 'inline';
+        roomStatusEl.innerText = `[房间: ${currentRoomName}]`;
+        initMultiPlayer();
     }
+}
 
-    function confirmStart() {
-        lobbyOverlay.style.display = 'none';
-        gameOverOverlay.style.display = 'none'; // 确保结束面板隐藏
-        scoreEl.innerText = "当前: 0";
-        
-        if (gameMode === 'single') {
-            roomStatusEl.style.display = 'none';
-            initSinglePlayer();
-        } else {
-            roomStatusEl.style.display = 'inline';
-            roomStatusEl.innerText = `[房间: ${currentRoomName}]`;
-            initMultiPlayer();
-        }
+// ==========================================
+// 3. 单机模式逻辑
+// ==========================================
+function initSinglePlayer() {
+    snake = [{x: 10, y: 10}];
+    dx = 1; dy = 0;
+    score = 0;
+    isGameRunning = true;
+    isPaused = false;
+    pauseBtn.disabled = false;
+    placeFood();
+    if(gameLoop) clearInterval(gameLoop);
+    gameLoop = setInterval(updateSinglePlayer, 150);
+}
+
+function updateSinglePlayer() {
+    if (!isGameRunning || isPaused) return;
+    const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+    // 撞墙或撞自己
+    if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount || snake.some(s => s.x === head.x && s.y === head.y)) {
+        return gameOverSingle();
     }
-
-    // ==========================================
-    // 3. 单机模式逻辑
-    // ==========================================
-    function initSinglePlayer() {
-        snake = [{x: 10, y: 10}];
-        dx = 1; dy = 0;
-        score = 0;
-        isGameRunning = true;
-        isPaused = false;
-        pauseBtn.disabled = false;
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) {
+        score += 10;
+        scoreEl.innerText = `当前: ${score}`;
         placeFood();
-        
-        if(gameLoop) clearInterval(gameLoop);
-        gameLoop = setInterval(updateSinglePlayer, 150);
+    } else {
+        snake.pop();
     }
+    drawSinglePlayer();
+}
 
-    function updateSinglePlayer() {
-        if (!isGameRunning || isPaused) return;
-        const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+function drawSinglePlayer() {
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // 画食物
+    ctx.fillStyle = '#d4af37';
+    ctx.beginPath();
+    ctx.arc(food.x * gridSize + gridSize/2, food.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI*2);
+    ctx.fill();
+    // 画蛇 (单机模式默认高亮)
+    snake.forEach((seg, index) => {
+        ctx.fillStyle = index === 0 ? '#8fbc8f' : '#4a5d23';
+        ctx.fillRect(seg.x * gridSize, seg.y * gridSize, gridSize - 2, gridSize - 2);
+    });
+}
 
-        // 撞墙或撞自己
-        if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount || snake.some(s => s.x === head.x && s.y === head.y)) {
-            return gameOverSingle();
-        }
-
-        snake.unshift(head);
-        if (head.x === food.x && head.y === food.y) {
-            score += 10;
-            scoreEl.innerText = `当前: ${score}`;
-            placeFood();
-        } else {
-            snake.pop();
-        }
-        drawSinglePlayer();
+function placeFood() {
+    food = { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) };
+    for(let s of snake) {
+        if(s.x === food.x && s.y === food.y) placeFood();
     }
+}
 
-    function drawSinglePlayer() {
-        ctx.fillStyle = '#0d0d0d';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 画食物
-        ctx.fillStyle = '#d4af37';
+function togglePause() {
+    if(gameMode !== 'single' || !isGameRunning) return;
+    isPaused = !isPaused;
+    pauseBtn.innerText = isPaused ? "继续机关" : "暂停机关";
+}
+
+function gameOverSingle() {
+    isGameRunning = false;
+    clearInterval(gameLoop);
+    
+    // --- 新增：单机模式保存最高分逻辑 ---
+    const bestScoreEl = document.querySelector('.best-score');
+    const currentBestScoreText = bestScoreEl ? bestScoreEl.innerText.split(': ')[1] : '0';
+    const currentBestScore = parseInt(currentBestScoreText) || 0;
+
+    if (score > currentBestScore) {
+        fetch('/zhang_jia/api/snake_action/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({ action: 'submit_score', score: score })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' && bestScoreEl) {
+                bestScoreEl.innerText = `历史最高: ${score}`;
+            }
+        })
+        .catch(error => console.error('保存分数失败:', error));
+    }
+    // --- 逻辑结束 ---
+
+    showGameOverPanel(`单机模式结束！得分: ${score}`);
+}
+
+// ==========================================
+// 4. 联机模式逻辑
+// ==========================================
+function initMultiPlayer() {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    socket = new WebSocket(wsProtocol + window.location.host + '/ws/snake/' + currentRoomName + '/');
+    socket.onopen = function(e) {
+        console.log("✅ 已连接到联机战场");
+    };
+    socket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        if (data.type === 'update_game') {
+            multiGameState.snakes = data.snakes;
+            multiGameState.foods = data.foods;
+            // 【关键】获取自己的ID
+            if (data.my_id) {
+                myPlayerId = data.my_id;
+            }
+            drawMultiPlayer();
+        }
+        if (data.type === 'game_over') {
+            showGameOverPanel(data.message);
+        }
+    };
+    socket.onclose = function(e) {
+        console.log("❌ 连接断开");
+    };
+}
+
+function drawMultiPlayer() {
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // 画食物
+    ctx.fillStyle = '#d4af37';
+    multiGameState.foods.forEach(f => {
         ctx.beginPath();
-        ctx.arc(food.x * gridSize + gridSize/2, food.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI*2);
+        ctx.arc(f.x * gridSize + gridSize/2, f.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI*2);
         ctx.fill();
-
-        // 画蛇 (单机模式默认高亮)
-        snake.forEach((seg, index) => {
-            ctx.fillStyle = index === 0 ? '#8fbc8f' : '#4a5d23';
+    });
+    // 画蛇
+    multiGameState.snakes.forEach(s => {
+        // 【核心逻辑】判断是不是自己的蛇
+        // 注意：后端传来的 id 可能是数字，myPlayerId 可能是字符串，所以用 == 而不是 ===
+        const isMySnake = (s.id == myPlayerId);
+        // 自己的蛇高亮，别人的蛇暗色
+        ctx.fillStyle = isMySnake ? '#8fbc8f' : '#4a5d23';
+        s.body.forEach(seg => {
             ctx.fillRect(seg.x * gridSize, seg.y * gridSize, gridSize - 2, gridSize - 2);
         });
-    }
-
-    function placeFood() {
-        food = { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) };
-        for(let s of snake) { if(s.x === food.x && s.y === food.y) placeFood(); }
-    }
-
-    function togglePause() {
-        if(gameMode !== 'single' || !isGameRunning) return;
-        isPaused = !isPaused;
-        pauseBtn.innerText = isPaused ? "继续机关" : "暂停机关";
-    }
-
-    function gameOverSingle() {
-        isGameRunning = false;
-        clearInterval(gameLoop);
-        showGameOverPanel(`单机模式结束！得分: ${score}`);
-    }
-
-    // ==========================================
-    // 4. 联机模式逻辑
-    // ==========================================
-    function initMultiPlayer() {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        socket = new WebSocket(wsProtocol + window.location.host + '/ws/snake/' + currentRoomName + '/');
-
-        socket.onopen = function(e) {
-            console.log("✅ 已连接到联机战场");
-        };
-
-        socket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            
-            if (data.type === 'update_game') {
-                multiGameState.snakes = data.snakes;
-                multiGameState.foods = data.foods;
-                
-                // 【关键】获取自己的ID
-                if (data.my_id) {
-                    myPlayerId = data.my_id;
-                }
-                
-                drawMultiPlayer();
-            }
-            
-            if (data.type === 'game_over') {
-                showGameOverPanel(data.message);
-            }
-        };
-
-        socket.onclose = function(e) {
-            console.log("❌ 连接断开");
-        };
-    }
-
-    function drawMultiPlayer() {
-        ctx.fillStyle = '#0d0d0d';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // 画食物
-        ctx.fillStyle = '#d4af37';
-        multiGameState.foods.forEach(f => {
-            ctx.beginPath();
-            ctx.arc(f.x * gridSize + gridSize/2, f.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI*2);
-            ctx.fill();
-        });
-
-        // 画蛇
-        multiGameState.snakes.forEach(s => {
-            // 【核心逻辑】判断是不是自己的蛇
-            // 注意：后端传来的 id 可能是数字，myPlayerId 可能是字符串，所以用 == 而不是 ===
-            const isMySnake = (s.id == myPlayerId);
-            
-            // 自己的蛇高亮，别人的蛇暗色
-            ctx.fillStyle = isMySnake ? '#8fbc8f' : '#4a5d23';
-            
-            s.body.forEach(seg => {
-                ctx.fillRect(seg.x * gridSize, seg.y * gridSize, gridSize - 2, gridSize - 2);
-            });
-
-            // 在自己的蛇头上画个“我”字
-            if (isMySnake && s.body.length > 0) {
-                ctx.fillStyle = '#fff';
-                ctx.font = '12px Arial';
-                ctx.fillText("我", s.body[0].x * gridSize, s.body[0].y * gridSize - 5);
-            }
-        });
-    }
-
-    // ==========================================
-    // 5. 游戏结束面板逻辑
-    // ==========================================
-    function showGameOverPanel(message) {
-        isGameRunning = false; // 停止本地游戏循环
-        const overlay = document.getElementById('game-over-overlay');
-        const msgEl = document.getElementById('game-over-msg');
-        
-        msgEl.innerText = message || "游戏结束";
-        overlay.style.display = 'flex'; // 显示遮罩
-    }
-
-    function restartGame() {
-        const overlay = document.getElementById('game-over-overlay');
-        overlay.style.display = 'none'; // 隐藏遮罩
-        
-        if (gameMode === 'single') {
-            initSinglePlayer(); // 单机：直接重新初始化
-        } else {
-            // 联机：通知后端重置
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                 socket.send(JSON.stringify({ 'type': 'restart' }));
-                 // 前端状态会在下一次 onmessage 中自动更新
-                 isGameRunning = true;
-            }
-        }
-    }
-
-    function quitToLobby() {
-        const overlay = document.getElementById('game-over-overlay');
-        overlay.style.display = 'none';
-        
-        if (gameMode === 'multi' && socket) {
-            socket.close(); // 关闭 WebSocket 连接
-            socket = null;
-        }
-        
-        // 清理画布
-        ctx.fillStyle = '#0d0d0d';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 回到初始的大厅界面
-        lobbyOverlay.style.display = 'flex';
-        roomStatusEl.style.display = 'none';
-        pauseBtn.disabled = true;
-    }
-
-
-    document.addEventListener('keydown', function(e) {
-        // 防止按键时页面滚动
-        if(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].indexOf(e.code) > -1) {
-            e.preventDefault();
-        }
-
-        // 如果游戏没在运行，或者暂停了，就不响应方向键
-        if (!isGameRunning || isPaused) return;
-
-        // 单机模式控制
-        if (gameMode === 'single') {
-            if (e.key === 'ArrowUp' || e.key === 'w') {
-                if (dy !== 1) { dx = 0; dy = -1; }
-            } else if (e.key === 'ArrowDown' || e.key === 's') {
-                if (dy !== -1) { dx = 0; dy = 1; }
-            } else if (e.key === 'ArrowLeft' || e.key === 'a') {
-                if (dx !== 1) { dx = -1; dy = 0; }
-            } else if (e.key === 'ArrowRight' || e.key === 'd') {
-                if (dx !== -1) { dx = 1; dy = 0; }
-            }
-        } 
-        // 联机模式控制
-        else if (gameMode === 'multi' && socket && socket.readyState === WebSocket.OPEN) {
-            let direction = '';
-            if (e.key === 'ArrowUp' || e.key === 'w') direction = 'up';
-            else if (e.key === 'ArrowDown' || e.key === 's') direction = 'down';
-            else if (e.key === 'ArrowLeft' || e.key === 'a') direction = 'left';
-            else if (e.key === 'ArrowRight' || e.key === 'd') direction = 'right';
-
-            if (direction) {
-                socket.send(JSON.stringify({
-                    'type': 'move',
-                    'direction': direction
-                }));
-            }
+        // 在自己的蛇头上画个“我”字
+        if (isMySnake && s.body.length > 0) {
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Arial';
+            ctx.fillText("我", s.body[0].x * gridSize, s.body[0].y * gridSize - 5);
         }
     });
+}
 
+// ==========================================
+// 5. 游戏结束面板逻辑
+// ==========================================
+function showGameOverPanel(message) {
+    isGameRunning = false;
+    const overlay = document.getElementById('game-over-overlay');
+    const msgEl = document.getElementById('game-over-msg');
+    
+    // --- 核心改动：处理联机模式的排行榜 ---
+    if (gameMode === 'multi' && currentRoomName) {
+        msgEl.innerHTML = '游戏结束！正在加载排行榜...';
+        overlay.style.display = 'flex';
+
+        // 向后端请求当前房间的排行榜
+        fetch(`/zhang_jia/api_snake_leaderboard/?room_name=${currentRoomName}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    let leaderboardHtml = `<h3>房间 ${currentRoomName} 排行榜</h3><ol>`;
+                    data.leaderboard.forEach((player, index) => {
+                        // 高亮显示自己
+                        const isMe = player.username === data.my_username ? 'style="color: #8fbc8f; font-weight: bold;"' : '';
+                        leaderboardHtml += `<li ${isMe}>${player.username}: ${player.score} 分</li>`;
+                    });
+                    leaderboardHtml += `</ol>`;
+                    msgEl.innerHTML = leaderboardHtml;
+                } else {
+                    msgEl.innerText = message || "游戏结束";
+                }
+            })
+            .catch(error => {
+                console.error('获取排行榜失败:', error);
+                msgEl.innerText = message || "游戏结束";
+            });
+    } else {
+        // 单机模式，保持原样
+        msgEl.innerText = message || "游戏结束";
+        overlay.style.display = 'flex';
+    }
+}
+
+function restartGame() {
+    const overlay = document.getElementById('game-over-overlay');
+    overlay.style.display = 'none'; // 隐藏遮罩
+    if (gameMode === 'single') {
+        initSinglePlayer(); // 单机：直接重新初始化
+    } else {
+        // 联机：通知后端重置
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ 'type': 'restart' }));
+            // 前端状态会在下一次 onmessage 中自动更新
+            isGameRunning = true;
+        }
+    }
+}
+
+function quitToLobby() {
+    const overlay = document.getElementById('game-over-overlay');
+    overlay.style.display = 'none';
+    if (gameMode === 'multi' && socket) {
+        socket.close(); // 关闭 WebSocket 连接
+        socket = null;
+    }
+    // 清理画布
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // 回到初始的大厅界面
+    lobbyOverlay.style.display = 'flex';
+    roomStatusEl.style.display = 'none';
+    pauseBtn.disabled = true;
+}
+
+document.addEventListener('keydown', function(e) {
+    // 防止按键时页面滚动
+    if(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].indexOf(e.code) > -1) {
+        e.preventDefault();
+    }
+    // 如果游戏没在运行，或者暂停了，就不响应方向键
+    if (!isGameRunning || isPaused) return;
+
+    // 单机模式控制
+    if (gameMode === 'single') {
+        if (e.key === 'ArrowUp' || e.key === 'w') {
+            if (dy !== 1) { dx = 0; dy = -1; }
+        } else if (e.key === 'ArrowDown' || e.key === 's') {
+            if (dy !== -1) { dx = 0; dy = 1; }
+        } else if (e.key === 'ArrowLeft' || e.key === 'a') {
+            if (dx !== 1) { dx = -1; dy = 0; }
+        } else if (e.key === 'ArrowRight' || e.key === 'd') {
+            if (dx !== -1) { dx = 1; dy = 0; }
+        }
+    }
+    // 联机模式控制
+    else if (gameMode === 'multi' && socket && socket.readyState === WebSocket.OPEN) {
+        let direction = '';
+        if (e.key === 'ArrowUp' || e.key === 'w') direction = 'up';
+        else if (e.key === 'ArrowDown' || e.key === 's') direction = 'down';
+        else if (e.key === 'ArrowLeft' || e.key === 'a') direction = 'left';
+        else if (e.key === 'ArrowRight' || e.key === 'd') direction = 'right';
+        if (direction) {
+            socket.send(JSON.stringify({ 'type': 'move', 'direction': direction }));
+        }
+    }
+});
+
+// 别忘了页面里需要有获取 CSRF Token 的辅助函数（Django 必备）
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
 </script>
 {% endblock %}

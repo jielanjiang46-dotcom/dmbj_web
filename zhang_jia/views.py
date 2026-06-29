@@ -3,6 +3,8 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User 
 import json
+from .consumers import GAME_ROOMS
+from django.views.decorators.http import require_GET
 
 # Create your views here.
 def memory(request):
@@ -121,3 +123,45 @@ def get_snake_score(request):
         return JsonResponse({'status': 'success', 'score': score})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
+
+@login_required   # <--- 【关键】加上这个，Django 就会自动识别当前登录用户
+@require_GET     # <--- 限制只能 GET 请求
+def api_snake_leaderboard(request):
+    """
+    获取指定房间的排行榜数据
+    """
+    # 1. 获取房间号
+    room_name = request.GET.get('room_name')
+    if not room_name:
+        return JsonResponse({'status': 'error', 'message': '缺少房间号'}, status=400)
+
+    # 2. 从全局游戏状态中查找房间
+    room_data = GAME_ROOMS.get(room_name)
+    
+    # 3. 如果房间不存在或没人，返回空列表
+    if not room_data:
+        return JsonResponse({
+            'status': 'success',
+            'leaderboard': [],
+            'my_username': request.user.username # 即使没房间，也可以告诉前端你是谁
+        })
+
+    # 4. 提取所有蛇的分数和用户名，并排序
+    leaderboard = []
+    for snake in room_data['snakes']:
+        leaderboard.append({
+            'username': snake['name'],
+            'score': snake['score']
+        })
+    
+    # 按分数从高到低排序
+    leaderboard.sort(key=lambda x: x['score'], reverse=True)
+
+    # 5. 【完美解决】现在 request.user 是真实的登录用户了
+    current_user_name = request.user.username
+    
+    return JsonResponse({
+        'status': 'success',
+        'leaderboard': leaderboard,
+        'my_username': current_user_name # <--- 前端拿到这个就能高亮显示了！
+    })
