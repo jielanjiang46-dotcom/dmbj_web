@@ -37,6 +37,18 @@
         .dmbj-input-area input { flex: 1; background: #222; border: 1px solid #555; border-radius: 5px; padding: 10px; color: #fff; outline: none; }
         .dmbj-input-area button { background: #d4af37; border: none; color: #111; padding: 0 15px; border-radius: 5px; cursor: pointer; font-weight: bold;}
         .hidden { display: none !important; }
+        /* 【新增】返回按钮样式 */
+        .dmbj-back-btn { 
+            padding: 6px 10px; 
+            background: #444; 
+            color: #fff; 
+            border: 1px solid #666; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 12px; 
+            white-space: nowrap;
+        }
+        .dmbj-back-btn:hover { background: #555; }
     </style>
 </head>
 <body>
@@ -105,6 +117,7 @@
             </div>
             <!-- 输入区域 (默认隐藏) -->
             <div class="dmbj-input-area" id="chatInputArea" style="display: none;">
+                <button id="backToListBtn" class="dmbj-back-btn" onclick="showFriendList()">⬅ 返回</button>
                 <input type="text" id="chatInput" placeholder="输入消息..." onkeypress="handleEnter(event)">
                 <button onclick="sendMessage()">发送</button>
             </div>
@@ -124,6 +137,8 @@
     // 1. 初始化变量
     let currentTab = 'notify';
     let currentChatPartnerId = null;
+    let pollingTimer = null;
+    let globalFriendsList = []; // 【新增】全局变量，用来暂存好友列表，方便返回时重新渲染
 
     // 2. 页面加载完成后执行
     document.addEventListener('DOMContentLoaded', function() {
@@ -135,6 +150,7 @@
             if (rawData) {
                 const friends = JSON.parse(rawData);
                 if (friends && friends.length > 0) {
+                    globalFriendsList = friends; // 【新增】存到全局变量里
                     renderFriendList(friends);
                 }
             }
@@ -160,6 +176,7 @@
         if (overlay) {
             overlay.classList.remove('active');
         }
+        stopPolling(); // 【新增】关闭面板时停止轮询
     }
 
     // 5. 点击遮罩层关闭 (如果 HTML 里有绑定这个事件的话)
@@ -250,7 +267,25 @@
         chatContent.appendChild(listContainer);
     }
 
-    // 8. 开始聊天
+    // 【新增】8. 返回好友列表 (你HTML里的返回按钮调用的就是这个)
+    function showFriendList() {
+        // 1. 清空当前聊天对象ID
+        currentChatPartnerId = null;
+        // 2. 停止轮询
+        stopPolling();
+        // 3. 隐藏输入框
+        const chatInputArea = document.getElementById('chatInputArea');
+        if(chatInputArea) chatInputArea.style.display = 'none';
+        // 4. 修改标题
+        const panelTitle = document.getElementById('panelTitle');
+        if(panelTitle) panelTitle.innerText = '💬 好友私聊';
+        // 5. 用暂存的全局数据重新渲染列表
+        if(globalFriendsList.length > 0) {
+            renderFriendList(globalFriendsList);
+        }
+    }
+
+    // 9. 开始聊天
     function startChatWith(id, name) {
         currentChatPartnerId = id;
         const panelTitle = document.getElementById('panelTitle');
@@ -270,9 +305,7 @@
         if(input) input.focus();
     }
 
-    // 9. 发送消息
-        // ... 前面的代码保持不变 ...
-
+    // 10. 发送消息
     function sendMessage() {
         const input = document.getElementById('chatInput');
         const text = input.value.trim();
@@ -291,15 +324,14 @@
         };
 
         // 【核心修复】获取 Django 必须的 CSRF 令牌
-        // 也就是刚才让你加在 HTML 里的那个 input 框的值
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
         // 2. 发起网络请求 (Fetch API)
-        fetch('/api/send_message/', {  // <--- 注意：这里要填你后端真实的接收地址
+        fetch('/api/send_message/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken // <--- 必须带上这个头，否则报错 403
+                'X-CSRFToken': csrfToken 
             },
             body: JSON.stringify(payload)
         })
@@ -311,23 +343,19 @@
         })
         .then(data => {
             console.log("发送成功:", data);
-            // 如果后端返回了新的消息ID或其他状态，可以在这里处理
         })
         .catch(error => {
             console.error("发送失败:", error);
             alert("消息发送失败，请检查网络连接或刷新页面重试。");
-            // 可选：如果发送失败，可以在界面上提示用户
         });
     }
 
-    // ... 后面的代码保持不变 ...
-
-    // 10. 处理回车发送
+    // 11. 处理回车发送
     function handleEnter(e) {
         if (e.key === 'Enter') sendMessage();
     }
 
-    // 11. 追加消息气泡
+    // 12. 追加消息气泡
     function appendMessage(text, isSent, target) {
         const containerId = target === 'chat' ? 'chatContent' : 'notifyContent';
         const container = document.getElementById(containerId);
@@ -341,9 +369,7 @@
         container.scrollTop = container.scrollHeight; // 自动滚动到底部
     }
 
-    let pollingTimer = null; // 用于存放定时器ID
-
-    // 1. 开启轮询的函数
+    // 13. 开启轮询的函数
     function startPolling(partnerId) {
         // 防止重复开启，先清除旧的
         if (pollingTimer) clearInterval(pollingTimer);
@@ -355,7 +381,7 @@
         }, 2000); // 2000毫秒 = 2秒
     }
 
-    // 2. 停止轮询（当关闭聊天窗口时调用）
+    // 14. 停止轮询（当关闭聊天窗口时调用）
     function stopPolling() {
         if (pollingTimer) {
             clearInterval(pollingTimer);
@@ -363,7 +389,7 @@
         }
     }
 
-    // 3. 真正去服务器拿数据的函数
+    // 15. 真正去服务器拿数据的函数
     function fetchMessages(partnerId) {
         fetch(`/api/get_messages/?partner_id=${partnerId}`)
             .then(response => response.json())
@@ -375,10 +401,8 @@
             .catch(err => console.error("获取消息失败", err));
     }
 
-    // 4. 渲染函数（示例）
-    // 4. 渲染函数 (修正版)
+    // 16. 渲染函数 (修正版)
     function renderChatHistory(messages) {
-        // 【关键修复】将 'chatContainer' 改为 'chatContent'，与 HTML 中的 ID 保持一致
         const chatBox = document.getElementById('chatContent'); 
         
         if (!chatBox) {
@@ -390,7 +414,6 @@
         chatBox.innerHTML = ''; 
         
         messages.forEach(msg => {
-            // 【关键修复】使用你 CSS 中定义好的类名 'dmbj-msg' 和 'sent'/'received'
             const div = document.createElement('div');
             div.className = `dmbj-msg ${msg.is_me ? 'sent' : 'received'}`;
             div.innerText = msg.content;
