@@ -47,3 +47,18 @@ class Friendship(models.Model):
 
     def __str__(self):
         return f"{self.from_user.username} -> {self.to_user.username} ({self.get_status_display()})"
+
+class Message(models.Model):
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages', verbose_name="发送者")
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages', verbose_name="接收者")
+    content = models.TextField(verbose_name="消息内容")
+    is_read = models.BooleanField(default=False, verbose_name="是否已读")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="发送时间")
+
+    class Meta:
+        ordering = ['created_at'] # 默认按时间正序排列
+        verbose_name = "私信记录"
+        verbose_name_plural = "私信记录"
+
+    def __str__(self):
+        return f"{self.sender.username} -> {self.receiver.username}: {self.content[:10]}..."

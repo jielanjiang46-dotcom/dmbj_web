@@ -4,69 +4,45 @@
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}青铜门小笔记{% endblock %}</title>
-    <!-- 全局样式直接写在这里 -->
     <style>
-        /* 全局背景：深色神秘风 */
-        body {
-            background-color: #1a1a1a;
-            color: #e0e0e0;
-            font-family: "Microsoft YaHei", sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
+        /* ========== 1. 你原有的全局样式 ========== */
+        body { background-color: #1a1a1a; color: #e0e0e0; font-family: "Microsoft YaHei", sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
+        .navbar { background-color: #2c2c2c; padding: 15px 20px; border-bottom: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
+        .nav-links a { color: #d4af37; text-decoration: none; margin-right: 30px; font-weight: bold; }
+        .nav-links a:hover { color: #fff; }
+        .main-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        footer { text-align: center; padding: 20px; background-color: #111; font-size: 12px; color: #666; }
+        .logout-btn { background: none; border: 1px solid #666; color: #888; padding: 5px 10px; cursor: pointer; }
 
-        /* 顶部导航栏样式 */
-        .navbar {
-            background-color: #2c2c2c;
-            padding: 15px 20px;
-            border-bottom: 1px solid #444;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .nav-links a {
-            color: #d4af37;
-            text-decoration: none;
-            margin-right: 30px;
-            font-weight: bold;
-        }
-
-        .nav-links a:hover {
-            color: #fff;
-        }
-
-        /* 页面主体内容容器 */
-        .main-container {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        /* 底部 Footer */
-        footer {
-            text-align: center;
-            padding: 20px;
-            background-color: #111;
-            font-size: 12px;
-            color: #666;
-        }
-
-        .logout-btn {
-            background: none;
-            border: 1px solid #666;
-            color: #888;
-            padding: 5px 10px;
-            cursor: pointer;
-        }
+        /* ========== 2. 全局消息面板样式 ========== */
+        .dmbj-float-btns { position: fixed; bottom: 30px; right: 30px; display: flex; gap: 15px; z-index: 999; }
+        .dmbj-float-btn { width: 55px; height: 55px; background: #2c2c2c; border: 2px solid #d4af37; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 22px; cursor: pointer; transition: 0.3s; position: relative; }
+        .dmbj-float-btn:hover { background: #d4af37; color: #111; }
+        .dmbj-badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: #fff; border-radius: 50%; padding: 2px 6px; font-size: 11px; display: none; }
+        .dmbj-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); z-index: 1000; display: none; justify-content: center; align-items: center; }
+        .dmbj-overlay.active { display: flex; }
+        .dmbj-panel { background: rgba(30, 30, 30, 0.98); width: 420px; height: 520px; border-radius: 12px; border: 1px solid #d4af37; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        .dmbj-panel-header { padding: 15px; border-bottom: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
+        .dmbj-panel-header h3 { margin: 0; color: #d4af37; font-size: 18px; }
+        .dmbj-close-btn { cursor: pointer; font-size: 20px; color: #aaa; }
+        .dmbj-tabs { display: flex; border-bottom: 1px solid #444; }
+        .dmbj-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; color: #888; transition: 0.3s; font-size: 14px; }
+        .dmbj-tab.active { color: #d4af37; border-bottom: 2px solid #d4af37; background: rgba(212,175,55,0.1); }
+        .dmbj-content { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .dmbj-msg { max-width: 85%; padding: 10px; border-radius: 10px; font-size: 14px; word-wrap: break-word; }
+        .dmbj-msg.received { background: #333; align-self: flex-start; border-bottom-left-radius: 0; }
+        .dmbj-msg.sent { background: #d4af37; align-self: flex-end; border-bottom-right-radius: 0; color: #111; }
+        .dmbj-msg.system { background: transparent; color: #888; font-size: 12px; align-self: center; text-align: center;}
+        .dmbj-input-area { padding: 15px; border-top: 1px solid #444; display: flex; gap: 10px; }
+        .dmbj-input-area input { flex: 1; background: #222; border: 1px solid #555; border-radius: 5px; padding: 10px; color: #fff; outline: none; }
+        .dmbj-input-area button { background: #d4af37; border: none; color: #111; padding: 0 15px; border-radius: 5px; cursor: pointer; font-weight: bold;}
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
+
+    <!-- 放在 body 内部 -->
+    {% csrf_token %}
 
     <!-- 顶部导航栏 -->
     <nav class="navbar">
@@ -99,5 +75,331 @@
         <p>&copy; 2026 北派四姑出品 | 必属精品</p>
     </footer>
 
+    <!-- ========== 3. 全局消息面板组件 ========== -->
+    {% if user.is_authenticated %}
+    <!-- 右下角悬浮按钮 -->
+    <div class="dmbj-float-btns">
+        <div class="dmbj-float-btn" onclick="togglePanel('notify')"> 🔔 <span class="dmbj-badge" id="notifyBadge">0</span> </div>
+        <div class="dmbj-float-btn" onclick="togglePanel('chat')"> 💬 <span class="dmbj-badge" id="chatBadge">0</span> </div>
+    </div>
+
+    <!-- 消息面板主体 -->
+    <div class="dmbj-overlay" id="dmbjOverlay" onclick="closePanelOutside(event)">
+        <div class="dmbj-panel">
+            <!-- 面板头部 -->
+            <div class="dmbj-panel-header">
+                <h3 id="panelTitle">🏮 联机通知</h3>
+                <span class="dmbj-close-btn" onclick="closePanel()">✕</span>
+            </div>
+            <!-- 标签页 -->
+            <div class="dmbj-tabs">
+                <div class="dmbj-tab active" id="tabNotify" onclick="switchTab('notify')">通知</div>
+                <div class="dmbj-tab" id="tabChat" onclick="switchTab('chat')">私聊</div>
+            </div>
+            <!-- 内容区域 -->
+            <div class="dmbj-content" id="notifyContent">
+                <div class="dmbj-msg system">欢迎来到青铜门，暂无新通知。</div>
+            </div>
+            <div class="dmbj-content hidden" id="chatContent">
+                <div class="dmbj-msg system">请选择一位好友开始对话。</div>
+            </div>
+            <!-- 输入区域 (默认隐藏) -->
+            <div class="dmbj-input-area" id="chatInputArea" style="display: none;">
+                <input type="text" id="chatInput" placeholder="输入消息..." onkeypress="handleEnter(event)">
+                <button onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ========== 4. 全局消息面板 JS 逻辑 ========== -->
+
+<!-- 第一步：独立的数据存储区 (必须放在 script 逻辑外面) -->
+<script id="friends-data" type="application/json">
+    {{ friends_json|safe }}
+</script>
+
+<!-- 第二步：JS 逻辑控制区 -->
+<script>
+    // 1. 初始化变量
+    let currentTab = 'notify';
+    let currentChatPartnerId = null;
+
+    // 2. 页面加载完成后执行
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            // 从上面独立的 script 标签中安全读取 JSON 字符串
+            const rawData = document.getElementById('friends-data').textContent.trim();
+            
+            // 只有当有数据时才解析，防止空值报错
+            if (rawData) {
+                const friends = JSON.parse(rawData);
+                if (friends && friends.length > 0) {
+                    renderFriendList(friends);
+                }
+            }
+        } catch (e) {
+            console.error("好友数据解析失败，请检查后端传入的 JSON 格式:", e);
+        }
+    });
+
+    // 3. 打开面板
+    function togglePanel(tab) {
+        const overlay = document.getElementById('dmbjOverlay');
+        if (overlay) {
+            overlay.classList.add('active');
+            switchTab(tab);
+        } else {
+            console.error("找不到 dmbjOverlay 元素");
+        }
+    }
+
+    // 4. 关闭面板
+    function closePanel() {
+        const overlay = document.getElementById('dmbjOverlay');
+        if (overlay) {
+            overlay.classList.remove('active');
+        }
+    }
+
+    // 5. 点击遮罩层关闭 (如果 HTML 里有绑定这个事件的话)
+    function closePanelOutside(e) {
+        if (e.target.id === 'dmbjOverlay') closePanel();
+    }
+
+    // 6. 切换标签页 (通知/聊天)
+    function switchTab(tab) {
+        currentTab = tab;
+        
+        // 获取 DOM 元素
+        const tabNotify = document.getElementById('tabNotify');
+        const tabChat = document.getElementById('tabChat');
+        const notifyContent = document.getElementById('notifyContent');
+        const chatContent = document.getElementById('chatContent');
+        const chatInputArea = document.getElementById('chatInputArea');
+        const panelTitle = document.getElementById('panelTitle');
+
+        // 重置状态
+        if(tabNotify) tabNotify.classList.remove('active');
+        if(tabChat) tabChat.classList.remove('active');
+
+        if (tab === 'notify') {
+            // 切换到通知页
+            if(tabNotify) tabNotify.classList.add('active');
+            if(notifyContent) notifyContent.classList.remove('hidden');
+            if(chatContent) chatContent.classList.add('hidden');
+            if(chatInputArea) chatInputArea.style.display = 'none';
+            if(panelTitle) panelTitle.innerText = '🏮 联机通知';
+        } else {
+            // 切换到聊天页
+            if(tabChat) tabChat.classList.add('active');
+            if(chatContent) chatContent.classList.remove('hidden');
+            if(notifyContent) notifyContent.classList.add('hidden');
+            if(panelTitle) panelTitle.innerText = '💬 好友私聊';
+
+            // 判断是否正在和某人聊天
+            if (currentChatPartnerId) {
+                if(chatInputArea) chatInputArea.style.display = 'flex';
+                const input = document.getElementById('chatInput');
+                if(input) input.focus();
+            } else {
+                if(chatInputArea) chatInputArea.style.display = 'none';
+            }
+        }
+    }
+
+    // 7. 渲染好友列表
+    function renderFriendList(friends) {
+        const chatContent = document.getElementById('chatContent');
+        if (!chatContent) return;
+
+        chatContent.innerHTML = ''; // 清空现有内容
+        
+        const listContainer = document.createElement('div');
+        listContainer.style.display = 'flex';
+        listContainer.style.flexDirection = 'column';
+        listContainer.style.gap = '10px';
+
+        friends.forEach(friend => {
+            const btn = document.createElement('button');
+            btn.innerText = `💬 和 ${friend.username} 聊聊`;
+            
+            // 样式设置
+            Object.assign(btn.style, {
+                padding: '10px',
+                background: '#2c2c2c',
+                border: '1px solid #444',
+                color: '#d4af37',
+                cursor: 'pointer',
+                textAlign: 'left',
+                borderRadius: '5px'
+            });
+
+            // 鼠标悬停效果
+            btn.onmouseenter = function() { this.style.background = '#333'; };
+            btn.onmouseleave = function() { this.style.background = '#2c2c2c'; };
+            
+            // 点击事件
+            btn.onclick = function() { 
+                startChatWith(friend.id, friend.username); 
+            };
+
+            listContainer.appendChild(btn);
+        });
+
+        chatContent.appendChild(listContainer);
+    }
+
+    // 8. 开始聊天
+    function startChatWith(id, name) {
+        currentChatPartnerId = id;
+        const panelTitle = document.getElementById('panelTitle');
+        const chatInputArea = document.getElementById('chatInputArea');
+        const chatContent = document.getElementById('chatContent');
+
+        if(panelTitle) panelTitle.innerText = `💬 正在和 ${name} 私聊`;
+        if(chatInputArea) chatInputArea.style.display = 'flex';
+        
+        // 【关键修复】开始聊天时，先清空聊天框，并启动轮询
+        if(chatContent) { 
+            chatContent.innerHTML = `<div class="dmbj-msg system">--- 开始与 ${name} 的对话 ---</div>`;
+            startPolling(id); // ✅ 加上这一行！
+        }
+        
+        const input = document.getElementById('chatInput');
+        if(input) input.focus();
+    }
+
+    // 9. 发送消息
+        // ... 前面的代码保持不变 ...
+
+    function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+
+        // 1. 基础校验
+        if (!text || !currentChatPartnerId) return;
+
+        // 【新增】先在界面上显示自己发的消息（优化体验）
+        appendMessage(text, true, 'chat');
+        input.value = ''; // 清空输入框
+
+        // 【核心修复】构建发送给后端的数据包
+        const payload = {
+            partner_id: currentChatPartnerId,
+            content: text
+        };
+
+        // 【核心修复】获取 Django 必须的 CSRF 令牌
+        // 也就是刚才让你加在 HTML 里的那个 input 框的值
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        // 2. 发起网络请求 (Fetch API)
+        fetch('/api/send_message/', {  // <--- 注意：这里要填你后端真实的接收地址
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken // <--- 必须带上这个头，否则报错 403
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('网络响应异常');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("发送成功:", data);
+            // 如果后端返回了新的消息ID或其他状态，可以在这里处理
+        })
+        .catch(error => {
+            console.error("发送失败:", error);
+            alert("消息发送失败，请检查网络连接或刷新页面重试。");
+            // 可选：如果发送失败，可以在界面上提示用户
+        });
+    }
+
+    // ... 后面的代码保持不变 ...
+
+    // 10. 处理回车发送
+    function handleEnter(e) {
+        if (e.key === 'Enter') sendMessage();
+    }
+
+    // 11. 追加消息气泡
+    function appendMessage(text, isSent, target) {
+        const containerId = target === 'chat' ? 'chatContent' : 'notifyContent';
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `dmbj-msg ${isSent ? 'sent' : 'received'}`;
+        msgDiv.innerText = text;
+        
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight; // 自动滚动到底部
+    }
+
+    let pollingTimer = null; // 用于存放定时器ID
+
+    // 1. 开启轮询的函数
+    function startPolling(partnerId) {
+        // 防止重复开启，先清除旧的
+        if (pollingTimer) clearInterval(pollingTimer);
+        
+        // 立即执行一次，然后每 2 秒执行一次
+        fetchMessages(partnerId); 
+        pollingTimer = setInterval(() => {
+            fetchMessages(partnerId);
+        }, 2000); // 2000毫秒 = 2秒
+    }
+
+    // 2. 停止轮询（当关闭聊天窗口时调用）
+    function stopPolling() {
+        if (pollingTimer) {
+            clearInterval(pollingTimer);
+            pollingTimer = null;
+        }
+    }
+
+    // 3. 真正去服务器拿数据的函数
+    function fetchMessages(partnerId) {
+        fetch(`/api/get_messages/?partner_id=${partnerId}`)
+            .then(response => response.json())
+            .then(res => {
+                if (res.status === 'ok') {
+                    renderChatHistory(res.data); // 调用渲染函数更新界面
+                }
+            })
+            .catch(err => console.error("获取消息失败", err));
+    }
+
+    // 4. 渲染函数（示例）
+    // 4. 渲染函数 (修正版)
+    function renderChatHistory(messages) {
+        // 【关键修复】将 'chatContainer' 改为 'chatContent'，与 HTML 中的 ID 保持一致
+        const chatBox = document.getElementById('chatContent'); 
+        
+        if (!chatBox) {
+            console.error("找不到聊天内容区域 #chatContent");
+            return;
+        }
+
+        // 简单的清空重绘逻辑
+        chatBox.innerHTML = ''; 
+        
+        messages.forEach(msg => {
+            // 【关键修复】使用你 CSS 中定义好的类名 'dmbj-msg' 和 'sent'/'received'
+            const div = document.createElement('div');
+            div.className = `dmbj-msg ${msg.is_me ? 'sent' : 'received'}`;
+            div.innerText = msg.content;
+            chatBox.appendChild(div);
+        });
+        
+        // 自动滚动到底部
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+</script>
 </body>
 </html>

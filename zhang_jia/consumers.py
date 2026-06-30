@@ -228,3 +228,123 @@ class SnakeConsumer(AsyncWebsocketConsumer):
             'type': 'game_over',
             'message': event['message']
         }))
+
+# game/consumers.py
+import json
+from channels.generic.websocket import AsyncWebsocketConsumer
+
+class IronTriangleConsumer(AsyncWebsocketConsumer):
+    # 铁三角专属的房间数据
+    rooms = {}
+
+    async def connect(self):
+        self.room_id = self.scope['url_route']['kwargs']['room_id']
+        self.room_group_name = f'game_iron_{self.room_id}'
+
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.accept()
+
+        # 初始化房间
+        if self.room_id not in self.rooms:
+            self.rooms[self.room_id] = {'players': {}, 'status': 'waiting'}
+
+        # 核心逻辑：按加入顺序分配角色
+        current_count = len(self.rooms[self.room_id]['players'])
+        if current_count == 0:
+            my_role = 'wuxie'
+            my_name = '吴邪'
+            is_host = True
+        elif current_count == 1:
+            my_role = 'pangzi'
+            my_name = '胖子'
+            is_host = False
+        elif current_count == 2:
+            my_role = 'zhangqiling'
+            my_name = '小哥'
+            is_host = False
+        else:
+            # 满了就拒绝
+            await self.close(code=4000)
+            return
+
+        # 把玩家加入房间
+        self.rooms[self.room_id]['players'][self.channel_name] = {
+            'role': my_role,
+            'name': my_name,
+            'is_host': is_host,
+            'x': 100, 'y': 100
+        }
+
+        # 告诉当前玩家他的身份
+        await self.send(text_data=json.dumps({
+            'type': 'assign_role',
+            'role': my_role,
+            'name': my_name,
+            'is_host': is_host,
+            'player_count': len(self.rooms[self.room_id]['players'])
+        }))
+
+        # 广播给房间里的其他人
+        await self.channel_layer.group_send(self.room_group_name, {
+            'type': 'player_joined',
+            'channel_name': self.channel_name,
+            'name': my_name,
+            'role': my_role,
+            'player_count': len(self.rooms[self.room_id]['players'])
+        })
+
+    async def disconnect(self, close_code):
+        if self.room_id in self.rooms:
+            self.rooms[self.room_id]['players'].pop(self.channel_name, None)
+            # 广播有人离开
+            await self.channel_layer.group_send(self.room_group_name, {
+                'type': 'player_left',
+                'channel_name': self.channel_name
+            })
+            # 房间空了就清理
+            if not self.rooms[self.room_id]['players']:
+                del self.rooms[self.room_id]
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        msg_type = data.get('type')
+
+        # 移动同步
+        if msg_type == 'player_move':
+            if self.channel_name in self.rooms[self.room_id]['players']:
+                self.rooms[self.room_id]['players'][self.channel_name]['x'] = data.get('x', 0)
+                self.rooms[self.room_id]['players'][self.channel_name]['y'] = data.get('y', 0)
+
+            await self.channel_layer.group_send(self.room_group_name, {
+                'type': 'broadcast_move',
+                'channel_name': self.channel_name,
+                'x': data.get('x', 0),
+                'y': data.get('y', 0)
+            })
+
+    # 广播消息的处理方法
+    async def player_joined(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'player_joined',
+            'channel_name': event['channel_name'],
+            'name': event['name'],
+            'role': event['role'],
+            'player_count': event['player_count']
+        }))
+
+    async def player_left(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'player_left',
+            'channel_name': event['channel_name']
+        }))
+
+    async def broadcast_move(self, event):
+        if event['channel_name'] == self.channel_name:
+            return
+        await self.send(text_data=json.dumps({
+            'type': 'player_move',
+            'channel_name': event['channel_name'],
+            'x': event['x'],
+            'y': event['y']
+        }))

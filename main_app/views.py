@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Topic, Entry, Comment, Like
 from .forms import TopicForm, EntryForm
-from accounts.models import UserProfile, Friendship  # 确保 Friendship 模型已导入
+from accounts.models import UserProfile, Friendship, Message  # 确保 Friendship 模型已导入
 import json
 from django.views.decorators.http import require_POST
 
@@ -270,76 +270,87 @@ def search_user(request):
         })
     
     return JsonResponse({'status': 'error', 'message': '未找到该用户'})
-
-# --- 修改后的 user_profile 视图 ---
-
-@login_required
+    
 def user_profile(request, username):
+    # 1. 获取当前查看的用户对象
     user_obj = get_object_or_404(User, username=username)
+    
+    # 2. 获取或创建用户资料
     profile, created = UserProfile.objects.get_or_create(user=user_obj)
+    
+    # 3. 获取该用户的主题/帖子 (按时间倒序)
     topics = user_obj.topics.all().order_by('-date_added')
 
-    # 初始化变量
+    # --- 【核心修复】初始化所有变量，防止 UnboundLocalError ---
     relation_status = 'none' 
-    pending_requests_in = [] # 我收到的申请
+    pending_requests_in = [] 
     friends_list = []
     friend_count = 0
+    friends_json = '[]'  # 默认为空 JSON 字符串
 
     if request.user.is_authenticated:
+        current_user = request.user
+        
         # --- 情况 A：我看的是别人的主页 ---
-        if request.user != user_obj:
-            # 1. 检查是否已经是双向好友
+        if current_user != user_obj:
+            # 检查是否已经是双向好友
             is_mutual = Friendship.objects.filter(
-                from_user=request.user, to_user=user_obj, status=Friendship.STATUS_ACCEPTED
+                from_user=current_user, to_user=user_obj, status=Friendship.STATUS_ACCEPTED
             ).exists() and Friendship.objects.filter(
-                from_user=user_obj, to_user=request.user, status=Friendship.STATUS_ACCEPTED
+                from_user=user_obj, to_user=current_user, status=Friendship.STATUS_ACCEPTED
             ).exists()
             
             if is_mutual:
                 relation_status = 'friends'
             else:
-                # 2. 检查我是否发过申请（单向）
+                # 检查我是否发过申请（单向）
                 sent_request = Friendship.objects.filter(
-                    from_user=request.user, to_user=user_obj, status=Friendship.STATUS_PENDING
+                    from_user=current_user, to_user=user_obj, status=Friendship.STATUS_PENDING
                 ).exists()
                 
                 if sent_request:
-                    relation_status = 'pending_sent' # 我发了，等对方
+                    relation_status = 'pending_sent'
                 else:
-                    # 3. 检查对方是否发过申请给我（我可以直接通过）
+                    # 检查对方是否发过申请给我
                     received_request = Friendship.objects.filter(
-                        from_user=user_obj, to_user=request.user, status=Friendship.STATUS_PENDING
+                        from_user=user_obj, to_user=current_user, status=Friendship.STATUS_PENDING
                     ).exists()
                     
                     if received_request:
-                        relation_status = 'pending_received' # 对方发了，我可以点通过
+                        relation_status = 'pending_received'
                     else:
-                        relation_status = 'none' # 没关系
+                        relation_status = 'none'
 
         # --- 情况 B：我看的是自己的主页 ---
         else:
-            # 获取“别人发给我，且状态为待验证”的申请
+            # 1. 获取待处理的好友申请
             pending_requests_in = Friendship.objects.filter(
-                to_user=request.user, 
+                to_user=current_user, 
                 status=Friendship.STATUS_PENDING
-            ).select_related('from_user') # 优化查询，直接拿到申请人对象
+            ).select_related('from_user')
 
-            # 获取真正的好友列表 (双向 STATUS_ACCEPTED)
-            # 这里简化逻辑：只要我和对方有一条通过的记录，就算好友（或者你可以严格判断双向）
-            # 通常做法：查所有和我有关且状态为 ACCEPTED 的记录
-            my_friends_ids = Friendship.objects.filter(
-                Q(from_user=request.user, status=Friendship.STATUS_ACCEPTED) | 
-                Q(to_user=request.user, status=Friendship.STATUS_ACCEPTED)
-            ).values_list('from_user_id', 'to_user_id')
+            # 2. 获取真正的好友列表 (双向 STATUS_ACCEPTED)
+            # 查找所有与我有关且状态为 ACCEPTED 的记录
+            my_friends_query = Friendship.objects.filter(
+                Q(from_user=current_user, status=Friendship.STATUS_ACCEPTED) | 
+                Q(to_user=current_user, status=Friendship.STATUS_ACCEPTED)
+            )
             
-            # 提取所有关联的 ID 并去重
+            # 提取好友 ID (排除我自己)
             ids = set()
-            for fid, tid in my_friends_ids:
-                if fid != request.user.id: ids.add(fid)
-                if tid != request.user.id: ids.add(tid)
+            for f in my_friends_query:
+                if f.from_user_id != current_user.id:
+                    ids.add(f.from_user_id)
+                if f.to_user_id != current_user.id:
+                    ids.add(f.to_user_id)
                 
+            # 批量获取好友对象
             friends_list = User.objects.filter(id__in=ids)
             friend_count = friends_list.count()
+            
+            # 3. 【关键】生成 JSON 数据供前端 JS 使用
+            friends_data = [{"id": u.id, "username": u.username} for u in friends_list]
+            friends_json = json.dumps(friends_data)
 
     context = {
         'profile_user': user_obj,
@@ -347,17 +358,19 @@ def user_profile(request, username):
         'topics': topics,
         'is_me': request.user == user_obj,
         
-        # 传递关系状态给前端 (用于显示按钮)
+        # 关系状态
         'relation_status': relation_status, 
         
-        # 传递待处理申请列表 (仅当看自己主页时有数据)
+        # 待处理申请
         'pending_requests_in': pending_requests_in,
         
+        # 好友相关数据
         'friends_list': friends_list,
-        'friend_count': friend_count
+        'friend_count': friend_count,
+        'friends_json': friends_json, # 确保这个变量永远存在
     }
+    
     return render(request, 'main_app/profile.html', context)
-
 
 @login_required
 def edit_profile(request):
@@ -539,3 +552,57 @@ def remove_friend(request):
         
     # 4. 操作完成后，刷新当前用户的主页
     return redirect('main_app:user_profile', username=request.user.username)
+
+@login_required
+@require_POST
+def send_message_api(request):
+    try:
+        data = json.loads(request.body)
+        partner_id = data.get('partner_id')
+        content = data.get('content')
+
+        if not partner_id or not content:
+            return JsonResponse({'status': 'error', 'msg': '参数缺失'}, status=400)
+
+        # 创建并保存消息
+        Message.objects.create(
+            sender=request.user,
+            receiver_id=partner_id, # 直接使用 ID 查询，效率更高
+            content=content
+        )
+
+        return JsonResponse({'status': 'ok', 'msg': '发送成功'})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
+
+@login_required
+def get_messages_api(request):
+    """获取与特定用户的聊天记录"""
+    partner_id = request.GET.get('partner_id')
+    
+    if not partner_id:
+        return JsonResponse({'status': 'error', 'msg': '缺少对方ID'}, status=400)
+
+    try:
+        # 查找“我发给他的”或者“他发给我的”消息
+        messages = Message.objects.filter(
+            (Q(sender=request.user) & Q(receiver_id=partner_id)) |
+            (Q(sender_id=partner_id) & Q(receiver=request.user))
+        ).order_by('created_at') # 按时间正序排列
+
+        # 将查询集转换为列表字典，方便前端 JSON 解析
+        data = []
+        for msg in messages:
+            data.append({
+                'id': msg.id,
+                'content': msg.content,
+                'sender_id': msg.sender.id,
+                'is_me': msg.sender == request.user, # 标记是不是自己发的
+                'time': msg.created_at.strftime('%H:%M')
+            })
+
+        return JsonResponse({'status': 'ok', 'data': data})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)

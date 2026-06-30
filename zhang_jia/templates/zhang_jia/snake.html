@@ -127,7 +127,7 @@
 
     <!-- 游戏画布容器 -->
     <div style="position: relative;">
-        <canvas id="snake-board" width="600" height="600"></canvas>
+        <canvas id="snake-board" width="600" height="600" tabIndex="1000"></canvas>
 
         <!-- ========================================== -->
         <!-- 1. 游戏大厅遮罩层 -->
@@ -152,7 +152,8 @@
                         <button onclick="createRoom()" style="padding: 5px 15px; background: #4a5d23; color: white; border: none; cursor: pointer;">➕ 创建房间</button>
                         <button onclick="joinRoom()" style="padding: 5px 15px; background: #2c3e50; color: white; border: 1px solid #4a5d23; cursor: pointer;">🚪 加入房间</button>
                     </div>
-                    <button id="start-game-btn" class="btn-zhang" onclick="confirmStart()">开启机关</button>
+                    <!-- 关键：在 onclick 里先调用 canvas.focus()，再调用 confirmStart() -->
+                    <button id="start-game-btn" class="btn-zhang" onclick="document.getElementById('snake-board').focus(); confirmStart();">开启机关</button>
                 </div>
             </div>
             <!-- 单机模式开始按钮 -->
@@ -251,6 +252,7 @@ function confirmStart() {
     lobbyOverlay.style.display = 'none';
     gameOverOverlay.style.display = 'none'; // 确保结束面板隐藏
     scoreEl.innerText = "当前: 0";
+    canvas.focus();
     if (gameMode === 'single') {
         roomStatusEl.style.display = 'none';
         initSinglePlayer();
@@ -356,6 +358,7 @@ function gameOverSingle() {
 // ==========================================
 // 4. 联机模式逻辑
 // ==========================================
+
 function initMultiPlayer() {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     socket = new WebSocket(wsProtocol + window.location.host + '/ws/snake/' + currentRoomName + '/');

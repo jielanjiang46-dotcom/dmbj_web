@@ -30,4 +30,6 @@ urlpatterns = [
     path('reject_friend/', views.reject_friend, name='reject_friend'),
     path('cancel_request/', views.cancel_friend_request, name='cancel_request'),
     path('remove_friend/', views.remove_friend, name='remove_friend'),
+    path('api/send_message/', views.send_message_api, name='send_message_api'),
+    path('api/get_messages/', views.get_messages_api, name='get_messages_api'),
 ]
