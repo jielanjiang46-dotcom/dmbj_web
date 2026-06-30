@@ -32,4 +32,7 @@ urlpatterns = [
     path('remove_friend/', views.remove_friend, name='remove_friend'),
     path('api/send_message/', views.send_message_api, name='send_message_api'),
     path('api/get_messages/', views.get_messages_api, name='get_messages_api'),
+    path('api/check_unread/', views.check_unread_count, name='check_unread_count'),
+    path('api/friends/', views.get_friends_api, name='get_friends_api'),
+    path('api/mark_as_read/', views.mark_messages_as_read, name='mark_as_read'),
 ]

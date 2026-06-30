@@ -606,3 +606,87 @@ def get_messages_api(request):
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
+
+# ... 其他代码不变 ...
+@login_required
+def check_unread_count(request):
+    """ 检查当前用户所有未读消息的总数 """
+    unread_count = Message.objects.filter(receiver=request.user, is_read=False).count()
+    return JsonResponse({
+        'status': 'ok',
+        'chat_unread': unread_count  # ✅ 就改这里！把 'unread_count' 改成 'chat_unread'
+    })
+
+@login_required
+def get_friends_api(request):
+    """
+    API: 获取当前用户的好友列表
+    """
+    try:
+        # 1. 找到所有与当前用户有关，且状态为“已通过”的好友关系
+        friendships = Friendship.objects.filter(
+            Q(from_user=request.user, status=Friendship.STATUS_ACCEPTED) |
+            Q(to_user=request.user, status=Friendship.STATUS_ACCEPTED)
+        )
+
+        # 2. 提取出真正的好友对象（排除掉自己）
+        friends = []
+        for f in friendships:
+            if f.from_user == request.user:
+                friends.append(f.to_user)
+            else:
+                friends.append(f.from_user)
+
+        # 3. 将好友数据整理成 JSON 格式
+        friends_data = []
+        for user in friends:
+            # 尝试获取用户的头像，如果没有则给一个默认值
+            avatar_url = user.userprofile.avatar.url if hasattr(user, 'userprofile') and user.userprofile.avatar else '/static/default_avatar.png'
+            friends_data.append({
+                'id': user.id,
+                'username': user.username,
+                'avatar': avatar_url
+            })
+
+        return JsonResponse({'status': 'ok', 'friends': friends_data})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
+
+# 在 from djang.txt 文件中添加这个新函数
+
+import logging
+logger = logging.getLogger('django')
+
+@login_required
+@require_POST
+def mark_messages_as_read(request):
+    """
+    标记与特定用户的所有消息为已读
+    """
+    try:
+        data = json.loads(request.body)
+        # 强制把 partner_id 转为字符串，防止类型不匹配
+        partner_id = str(data.get('partner_id')) 
+        
+        logger.info(f"🔥 收到标记已读请求，聊天对象ID: {partner_id}")
+
+        # 找到所有“对方发给我”且“未读”的消息
+        unread_messages = Message.objects.filter(
+            sender_id=partner_id,
+            receiver=request.user,
+            is_read=False
+        )
+
+        # 看看到底查到了几条未读消息
+        count = unread_messages.count()
+        logger.info(f"🔍 找到未读消息数量: {count}")
+
+        # 批量更新为已读
+        unread_messages.update(is_read=True)
+
+        return JsonResponse({'status': 'ok', 'msg': f'成功标记 {count} 条消息为已读'})
+
+    except Exception as e:
+        logger.error(f"❌ 标记已读出错: {str(e)}")
+        return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)

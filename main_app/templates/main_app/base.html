@@ -49,6 +49,20 @@
             white-space: nowrap;
         }
         .dmbj-back-btn:hover { background: #555; }
+
+        /* ========== 新增：抖动动画样式 ========== */
+        @keyframes shake-animation {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(15deg); }
+            50% { transform: rotate(-15deg); }
+            75% { transform: rotate(5deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        .dmbj-shake {
+            animation: shake-animation 0.5s ease-in-out;
+        }
+        
     </style>
 </head>
 <body>
@@ -93,6 +107,7 @@
     <div class="dmbj-float-btns">
         <div class="dmbj-float-btn" onclick="togglePanel('notify')"> 🔔 <span class="dmbj-badge" id="notifyBadge">0</span> </div>
         <div class="dmbj-float-btn" onclick="togglePanel('chat')"> 💬 <span class="dmbj-badge" id="chatBadge">0</span> </div>
+        <span class="dmbj-badge" id="unread-badge" style="display: none;">0</span>
     </div>
 
     <!-- 消息面板主体 -->
@@ -134,29 +149,18 @@
 
 <!-- 第二步：JS 逻辑控制区 -->
 <script>
+   // ================= 最终修复版：干净、无冲突的 JS 代码 =================
+
     // 1. 初始化变量
     let currentTab = 'notify';
     let currentChatPartnerId = null;
     let pollingTimer = null;
-    let globalFriendsList = []; // 【新增】全局变量，用来暂存好友列表，方便返回时重新渲染
+    let globalFriendsList = [];
 
     // 2. 页面加载完成后执行
     document.addEventListener('DOMContentLoaded', function() {
-        try {
-            // 从上面独立的 script 标签中安全读取 JSON 字符串
-            const rawData = document.getElementById('friends-data').textContent.trim();
-            
-            // 只有当有数据时才解析，防止空值报错
-            if (rawData) {
-                const friends = JSON.parse(rawData);
-                if (friends && friends.length > 0) {
-                    globalFriendsList = friends; // 【新增】存到全局变量里
-                    renderFriendList(friends);
-                }
-            }
-        } catch (e) {
-            console.error("好友数据解析失败，请检查后端传入的 JSON 格式:", e);
-        }
+        // 页面一加载，就启动低频的未读检查
+        startUnreadCheck();
     });
 
     // 3. 打开面板
@@ -165,8 +169,16 @@
         if (overlay) {
             overlay.classList.add('active');
             switchTab(tab);
-        } else {
-            console.error("找不到 dmbjOverlay 元素");
+            // 打开聊天面板时，重置红点和抖动
+            if (tab === 'chat') {
+                const badge = document.getElementById('chatBadge');
+                if (badge) {
+                    badge.innerText = '0';
+                    badge.style.display = 'none';
+                }
+                const btn = document.querySelector('.dmbj-float-btn[onclick="togglePanel(\'chat\')"]');
+                if (btn) btn.classList.remove('dmbj-shake');
+            }
         }
     }
 
@@ -176,19 +188,17 @@
         if (overlay) {
             overlay.classList.remove('active');
         }
-        stopPolling(); // 【新增】关闭面板时停止轮询
+        stopPolling(); // 关闭面板时停止所有轮询
     }
 
-    // 5. 点击遮罩层关闭 (如果 HTML 里有绑定这个事件的话)
+    // 5. 点击遮罩层关闭
     function closePanelOutside(e) {
         if (e.target.id === 'dmbjOverlay') closePanel();
     }
 
-    // 6. 切换标签页 (通知/聊天)
+    // 6. 切换标签页
     function switchTab(tab) {
         currentTab = tab;
-        
-        // 获取 DOM 元素
         const tabNotify = document.getElementById('tabNotify');
         const tabChat = document.getElementById('tabChat');
         const notifyContent = document.getElementById('notifyContent');
@@ -196,31 +206,30 @@
         const chatInputArea = document.getElementById('chatInputArea');
         const panelTitle = document.getElementById('panelTitle');
 
-        // 重置状态
         if(tabNotify) tabNotify.classList.remove('active');
         if(tabChat) tabChat.classList.remove('active');
 
         if (tab === 'notify') {
-            // 切换到通知页
             if(tabNotify) tabNotify.classList.add('active');
             if(notifyContent) notifyContent.classList.remove('hidden');
             if(chatContent) chatContent.classList.add('hidden');
             if(chatInputArea) chatInputArea.style.display = 'none';
             if(panelTitle) panelTitle.innerText = '🏮 联机通知';
         } else {
-            // 切换到聊天页
             if(tabChat) tabChat.classList.add('active');
             if(chatContent) chatContent.classList.remove('hidden');
             if(notifyContent) notifyContent.classList.add('hidden');
             if(panelTitle) panelTitle.innerText = '💬 好友私聊';
-
-            // 判断是否正在和某人聊天
             if (currentChatPartnerId) {
                 if(chatInputArea) chatInputArea.style.display = 'flex';
                 const input = document.getElementById('chatInput');
                 if(input) input.focus();
             } else {
                 if(chatInputArea) chatInputArea.style.display = 'none';
+                // 显示好友列表
+                if(globalFriendsList.length > 0) {
+                    renderFriendList(globalFriendsList);
+                }
             }
         }
     }
@@ -229,159 +238,27 @@
     function renderFriendList(friends) {
         const chatContent = document.getElementById('chatContent');
         if (!chatContent) return;
-
-        chatContent.innerHTML = ''; // 清空现有内容
-        
+        chatContent.innerHTML = '';
         const listContainer = document.createElement('div');
         listContainer.style.display = 'flex';
         listContainer.style.flexDirection = 'column';
         listContainer.style.gap = '10px';
-
         friends.forEach(friend => {
             const btn = document.createElement('button');
             btn.innerText = `💬 和 ${friend.username} 聊聊`;
-            
-            // 样式设置
             Object.assign(btn.style, {
-                padding: '10px',
-                background: '#2c2c2c',
-                border: '1px solid #444',
-                color: '#d4af37',
-                cursor: 'pointer',
-                textAlign: 'left',
-                borderRadius: '5px'
+                padding: '10px', background: '#2c2c2c', border: '1px solid #444',
+                color: '#d4af37', cursor: 'pointer', textAlign: 'left', borderRadius: '5px'
             });
-
-            // 鼠标悬停效果
             btn.onmouseenter = function() { this.style.background = '#333'; };
             btn.onmouseleave = function() { this.style.background = '#2c2c2c'; };
-            
-            // 点击事件
-            btn.onclick = function() { 
-                startChatWith(friend.id, friend.username); 
-            };
-
+            btn.onclick = function() { startChatWith(friend.id, friend.username); };
             listContainer.appendChild(btn);
         });
-
         chatContent.appendChild(listContainer);
     }
 
-    // 【新增】8. 返回好友列表 (你HTML里的返回按钮调用的就是这个)
-    function showFriendList() {
-        // 1. 清空当前聊天对象ID
-        currentChatPartnerId = null;
-        // 2. 停止轮询
-        stopPolling();
-        // 3. 隐藏输入框
-        const chatInputArea = document.getElementById('chatInputArea');
-        if(chatInputArea) chatInputArea.style.display = 'none';
-        // 4. 修改标题
-        const panelTitle = document.getElementById('panelTitle');
-        if(panelTitle) panelTitle.innerText = '💬 好友私聊';
-        // 5. 用暂存的全局数据重新渲染列表
-        if(globalFriendsList.length > 0) {
-            renderFriendList(globalFriendsList);
-        }
-    }
-
-    // 9. 开始聊天
-    function startChatWith(id, name) {
-        currentChatPartnerId = id;
-        const panelTitle = document.getElementById('panelTitle');
-        const chatInputArea = document.getElementById('chatInputArea');
-        const chatContent = document.getElementById('chatContent');
-
-        if(panelTitle) panelTitle.innerText = `💬 正在和 ${name} 私聊`;
-        if(chatInputArea) chatInputArea.style.display = 'flex';
-        
-        // 【关键修复】开始聊天时，先清空聊天框，并启动轮询
-        if(chatContent) { 
-            chatContent.innerHTML = `<div class="dmbj-msg system">--- 开始与 ${name} 的对话 ---</div>`;
-            startPolling(id); // ✅ 加上这一行！
-        }
-        
-        const input = document.getElementById('chatInput');
-        if(input) input.focus();
-    }
-
-    // 10. 发送消息
-    function sendMessage() {
-        const input = document.getElementById('chatInput');
-        const text = input.value.trim();
-
-        // 1. 基础校验
-        if (!text || !currentChatPartnerId) return;
-
-        // 【新增】先在界面上显示自己发的消息（优化体验）
-        appendMessage(text, true, 'chat');
-        input.value = ''; // 清空输入框
-
-        // 【核心修复】构建发送给后端的数据包
-        const payload = {
-            partner_id: currentChatPartnerId,
-            content: text
-        };
-
-        // 【核心修复】获取 Django 必须的 CSRF 令牌
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-        // 2. 发起网络请求 (Fetch API)
-        fetch('/api/send_message/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken 
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('网络响应异常');
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log("发送成功:", data);
-        })
-        .catch(error => {
-            console.error("发送失败:", error);
-            alert("消息发送失败，请检查网络连接或刷新页面重试。");
-        });
-    }
-
-    // 11. 处理回车发送
-    function handleEnter(e) {
-        if (e.key === 'Enter') sendMessage();
-    }
-
-    // 12. 追加消息气泡
-    function appendMessage(text, isSent, target) {
-        const containerId = target === 'chat' ? 'chatContent' : 'notifyContent';
-        const container = document.getElementById(containerId);
-        if (!container) return;
-
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `dmbj-msg ${isSent ? 'sent' : 'received'}`;
-        msgDiv.innerText = text;
-        
-        container.appendChild(msgDiv);
-        container.scrollTop = container.scrollHeight; // 自动滚动到底部
-    }
-
-    // 13. 开启轮询的函数
-    function startPolling(partnerId) {
-        // 防止重复开启，先清除旧的
-        if (pollingTimer) clearInterval(pollingTimer);
-        
-        // 立即执行一次，然后每 2 秒执行一次
-        fetchMessages(partnerId); 
-        pollingTimer = setInterval(() => {
-            fetchMessages(partnerId);
-        }, 2000); // 2000毫秒 = 2秒
-    }
-
-    // 14. 停止轮询（当关闭聊天窗口时调用）
+    // 8. 停止轮询
     function stopPolling() {
         if (pollingTimer) {
             clearInterval(pollingTimer);
@@ -389,40 +266,236 @@
         }
     }
 
-    // 15. 真正去服务器拿数据的函数
-    function fetchMessages(partnerId) {
-        fetch(`/api/get_messages/?partner_id=${partnerId}`)
-            .then(response => response.json())
-            .then(res => {
-                if (res.status === 'ok') {
-                    renderChatHistory(res.data); // 调用渲染函数更新界面
-                }
-            })
-            .catch(err => console.error("获取消息失败", err));
-    }
-
-    // 16. 渲染函数 (修正版)
-    function renderChatHistory(messages) {
-        const chatBox = document.getElementById('chatContent'); 
-        
-        if (!chatBox) {
-            console.error("找不到聊天内容区域 #chatContent");
-            return;
+    // 9. 返回好友列表
+    function showFriendList() {
+        currentChatPartnerId = null;
+        stopPolling();
+        const chatInputArea = document.getElementById('chatInputArea');
+        if(chatInputArea) chatInputArea.style.display = 'none';
+        const panelTitle = document.getElementById('panelTitle');
+        if(panelTitle) panelTitle.innerText = '💬 好友私聊';
+        if(globalFriendsList.length > 0) {
+            renderFriendList(globalFriendsList);
         }
-
-        // 简单的清空重绘逻辑
-        chatBox.innerHTML = ''; 
-        
-        messages.forEach(msg => {
-            const div = document.createElement('div');
-            div.className = `dmbj-msg ${msg.is_me ? 'sent' : 'received'}`;
-            div.innerText = msg.content;
-            chatBox.appendChild(div);
-        });
-        
-        // 自动滚动到底部
-        chatBox.scrollTop = chatBox.scrollHeight;
     }
+
+    // 10. 开始聊天
+    async function startChatWith(id, name) { // 1. 加上 async
+        currentChatPartnerId = id;
+        const panelTitle = document.getElementById('panelTitle');
+        const chatInputArea = document.getElementById('chatInputArea');
+        const chatContent = document.getElementById('chatContent');
+        if(panelTitle) panelTitle.innerText = `💬 正在和 ${name} 私聊`;
+        if(chatInputArea) chatInputArea.style.display = 'flex';
+        if(chatContent) {
+            chatContent.innerHTML = `<div class="dmbj-msg system">--- 开始与 ${name} 的对话 ---</div>`;
+            startPolling(id); // 启动前台聊天轮询
+        }
+        const input = document.getElementById('chatInput');
+        if(input) input.focus();
+
+        // 2. 在这里加上这几行新代码
+        try {
+            await fetch('/api/mark_as_read/', { // 确保这个URL和你后端配置的一致
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: JSON.stringify({ partner_id: id })
+            });
+        } catch (error) {
+            console.error('标记已读失败:', error);
+        }
+    }
+
+    // 11. 发送消息
+    function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (!text || !currentChatPartnerId) return;
+
+        appendMessage(text, true, 'chat');
+        input.value = '';
+
+        const payload = { partner_id: currentChatPartnerId, content: text };
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        fetch('/api/send_message/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('网络响应异常');
+            return response.json();
+        })
+        .then(data => { console.log("发送成功:", data); })
+        .catch(error => {
+            console.error("发送失败:", error);
+            alert("消息发送失败");
+        });
+    }
+
+    // 12. 处理回车发送
+    function handleEnter(e) {
+        if (e.key === 'Enter') sendMessage();
+    }
+
+    // 13. 追加消息气泡
+    function appendMessage(text, isSent, target) {
+        const containerId = target === 'chat' ? 'chatContent' : 'notifyContent';
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `dmbj-msg ${isSent ? 'sent' : 'received'}`;
+        msgDiv.innerText = text;
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // 14. 开启前台聊天轮询
+    function startPolling(partnerId) {
+        stopPolling();
+        fetchMessages(partnerId, false); // 立即执行一次
+        pollingTimer = setInterval(() => {
+            fetchMessages(partnerId, false);
+        }, 2000);
+    }
+
+    // 15. 获取消息的通用函数
+    function fetchMessages(partnerId, silent) {
+        if (!partnerId) return;
+        fetch(`/api/get_messages/?partner_id=${partnerId}`)
+        .then(response => response.json())
+        .then(res => {
+            if (res.status === 'ok') {
+                renderChatHistory(res.data, silent);
+            }
+        })
+        .catch(err => console.error("获取消息失败", err));
+    }
+
+    // 16. 渲染聊天历史
+    // 16. 渲染聊天历史 (清理版)
+    function renderChatHistory(messages, silent) {
+        const chatBox = document.getElementById('chatContent');
+        if (!chatBox) return;
+
+        // --- 删除这里判断红点的逻辑 ---
+        // if (messages.length > 0 && !messages[messages.length - 1].is_me) { ... }
+
+        if (!silent) {
+            const systemMsg = chatBox.querySelector('.dmbj-msg.system');
+            chatBox.innerHTML = '';
+            if (systemMsg) chatBox.appendChild(systemMsg);
+            
+            messages.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `dmbj-msg ${msg.is_me ? 'sent' : 'received'}`;
+                div.innerText = msg.content;
+                chatBox.appendChild(div);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    }
+    // 17. 触发通知红点和抖动
+    function triggerNotification() {
+        const badge = document.getElementById('unread-badge');
+        if (!badge) return;
+        let currentCount = parseInt(badge.innerText) || 0;
+        badge.innerText = currentCount + 1;
+        badge.style.display = 'inline-block';
+
+        const btn = document.querySelector('.dmbj-float-btn[onclick="togglePanel(\'chat\')"]');
+        if (btn) {
+            btn.classList.remove('dmbj-shake');
+            void btn.offsetWidth;
+            btn.classList.add('dmbj-shake');
+        }
+    }
+
+    // ================= 修复后的核心逻辑 =================
+
+    // 1. 获取好友列表
+    async function loadFriendList() {
+        try {
+            console.log("正在尝试获取好友列表...");
+            const response = await fetch('/api/friends/');
+            if (!response.ok) throw new Error('网络响应异常');
+            const data = await response.json();
+            console.log("好友数据:", data);
+            if (data.status === 'ok' && data.friends) {
+                globalFriendsList = data.friends; // 保存到全局变量
+                // 如果当前就在聊天标签页且没在聊天，就渲染列表
+                if (currentTab === 'chat' && !currentChatPartnerId) {
+                    renderFriendList(globalFriendsList);
+                }
+            }
+        } catch (error) {
+            console.error("获取好友失败:", error);
+        }
+    }
+
+    // 2. 检查未读消息 (低频轮询 - 修改版)
+    let unreadTimer = null;
+    function startUnreadCheck() {
+        if (unreadTimer) clearInterval(unreadTimer);
+        
+        const check = async () => {
+            try {
+                // 1. 请求后端接口
+                const res = await fetch('/api/check_unread/');
+                const data = await res.json();
+                
+                if (data.status === 'ok') {
+                    // --- 处理“私聊”红点 ---
+                    const chatBadge = document.getElementById('chatBadge');
+                    const chatCount = data.chat_unread || 0; // 获取私聊未读数
+                    
+                    if (chatBadge) {
+                        if (chatCount > 0) {
+                            chatBadge.innerText = chatCount > 99 ? '99+' : chatCount;
+                            chatBadge.style.display = 'inline-block';
+                            
+                            // 可选：加个抖动效果
+                            const btn = document.querySelector('.dmbj-float-btn[onclick="togglePanel(\'chat\')"]');
+                            if (btn) {
+                                btn.classList.remove('dmbj-shake');
+                                void btn.offsetWidth;
+                                btn.classList.add('dmbj-shake');
+                            }
+                        } else {
+                            chatBadge.style.display = 'none';
+                        }
+                    }
+
+                    // --- 处理“通知”红点 (你原来的逻辑) ---
+                    const notifyBadge = document.getElementById('notifyBadge');
+                    const notifyCount = data.notify_unread || 0;
+                    
+                    if (notifyBadge) {
+                        if (notifyCount > 0) {
+                            notifyBadge.innerText = notifyCount > 99 ? '99+' : notifyCount;
+                            notifyBadge.style.display = 'inline-block';
+                        } else {
+                            notifyBadge.style.display = 'none';
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("检查未读出错", e);
+            }
+        };
+        
+        check(); // 立即执行一次
+        unreadTimer = setInterval(check, 5000); // 每5秒查一次
+    }
+    // 3. 页面加载完成后启动
+    document.addEventListener('DOMContentLoaded', () => {
+        loadFriendList();      // 加载好友
+        startUnreadCheck();    // 开启低频轮询
+    });
 </script>
 </body>
 </html>
