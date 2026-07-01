@@ -230,121 +230,85 @@ class SnakeConsumer(AsyncWebsocketConsumer):
         }))
 
 # game/consumers.py
+
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
 
 class IronTriangleConsumer(AsyncWebsocketConsumer):
-    # 铁三角专属的房间数据
-    rooms = {}
-
     async def connect(self):
+        # 1. 从 URL 路由中获取房间号
         self.room_id = self.scope['url_route']['kwargs']['room_id']
-        self.room_group_name = f'game_iron_{self.room_id}'
-
-        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        self.room_group_name = f'game_room_{self.room_id}'
+        
+        # 2. 加入房间对应的频道组
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
+        
+        # 3. 接受 WebSocket 连接
         await self.accept()
-
-        # 初始化房间
-        if self.room_id not in self.rooms:
-            self.rooms[self.room_id] = {'players': {}, 'status': 'waiting'}
-
-        # 核心逻辑：按加入顺序分配角色
-        current_count = len(self.rooms[self.room_id]['players'])
-        if current_count == 0:
-            my_role = 'wuxie'
-            my_name = '吴邪'
-            is_host = True
-        elif current_count == 1:
-            my_role = 'pangzi'
-            my_name = '胖子'
-            is_host = False
-        elif current_count == 2:
-            my_role = 'zhangqiling'
-            my_name = '小哥'
-            is_host = False
-        else:
-            # 满了就拒绝
-            await self.close(code=4000)
-            return
-
-        # 把玩家加入房间
-        self.rooms[self.room_id]['players'][self.channel_name] = {
-            'role': my_role,
-            'name': my_name,
-            'is_host': is_host,
-            'x': 100, 'y': 100
-        }
-
-        # 告诉当前玩家他的身份
-        await self.send(text_data=json.dumps({
-            'type': 'assign_role',
-            'role': my_role,
-            'name': my_name,
-            'is_host': is_host,
-            'player_count': len(self.rooms[self.room_id]['players'])
-        }))
-
-        # 广播给房间里的其他人
-        await self.channel_layer.group_send(self.room_group_name, {
-            'type': 'player_joined',
-            'channel_name': self.channel_name,
-            'name': my_name,
-            'role': my_role,
-            'player_count': len(self.rooms[self.room_id]['players'])
-        })
+        
+        # 4. 获取当前房间内的玩家列表，并广播给所有人
+        await self.broadcast_room_info()
 
     async def disconnect(self, close_code):
-        if self.room_id in self.rooms:
-            self.rooms[self.room_id]['players'].pop(self.channel_name, None)
-            # 广播有人离开
-            await self.channel_layer.group_send(self.room_group_name, {
-                'type': 'player_left',
-                'channel_name': self.channel_name
-            })
-            # 房间空了就清理
-            if not self.rooms[self.room_id]['players']:
-                del self.rooms[self.room_id]
-        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        # 离开房间组
+        await self.channel_layer.group_discard(
+            self.room_group_name,
+            self.channel_name
+        )
 
+    # 接收来自 WebSocket 的消息 (前端发来的)
     async def receive(self, text_data):
         data = json.loads(text_data)
-        msg_type = data.get('type')
+        action = data.get('action')
 
-        # 移动同步
-        if msg_type == 'player_move':
-            if self.channel_name in self.rooms[self.room_id]['players']:
-                self.rooms[self.room_id]['players'][self.channel_name]['x'] = data.get('x', 0)
-                self.rooms[self.room_id]['players'][self.channel_name]['y'] = data.get('y', 0)
+        if action == 'join':
+            # 玩家加入时，更新房间信息并广播
+            # 这里可以记录玩家信息，比如从 session 获取用户名
+            username = data.get('username', '神秘人')
+            await self.broadcast_room_info()
 
-            await self.channel_layer.group_send(self.room_group_name, {
-                'type': 'broadcast_move',
-                'channel_name': self.channel_name,
-                'x': data.get('x', 0),
-                'y': data.get('y', 0)
-            })
+        elif action == 'start_game':
+            # 房主点击开始，广播给所有人跳转
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'game_start',
+                    'room_id': self.room_id
+                }
+            )
 
-    # 广播消息的处理方法
-    async def player_joined(self, event):
+    # 广播房间信息给组内所有人
+    async def broadcast_room_info(self):
+        # 实际开发中，这里应该从 Redis/缓存 中获取当前房间的玩家字典
+        # 这里我们先写一个模拟数据，后续你可以替换为真实的缓存逻辑
+        players = {
+            'wuxie': '吴邪',
+            'xiaoge': '张起灵',
+            'pangzi': None  # 假设胖子还没来
+        }
+        
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'room_info',
+                'players': players
+            }
+        )
+
+    # 处理广播：发送房间信息
+    async def room_info(self, event):
         await self.send(text_data=json.dumps({
-            'type': 'player_joined',
-            'channel_name': event['channel_name'],
-            'name': event['name'],
-            'role': event['role'],
-            'player_count': event['player_count']
+            'type': 'room_info',
+            'players': event['players']
         }))
 
-    async def player_left(self, event):
+    # 处理广播：游戏开始
+    async def game_start(self, event):
         await self.send(text_data=json.dumps({
-            'type': 'player_left',
-            'channel_name': event['channel_name']
-        }))
-
-    async def broadcast_move(self, event):
-        if event['channel_name'] == self.channel_name:
-            return
-        await self.send(text_data=json.dumps({
-            'type': 'player_move',
-            'channel_name': event['channel_name'],
-            'x': event['x'],
-            'y': event['y']
+            'type': 'game_start',
+            'room_id': event['room_id']
         }))

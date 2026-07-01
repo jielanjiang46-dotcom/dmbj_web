@@ -35,4 +35,6 @@ urlpatterns = [
     path('api/check_unread/', views.check_unread_count, name='check_unread_count'),
     path('api/friends/', views.get_friends_api, name='get_friends_api'),
     path('api/mark_as_read/', views.mark_messages_as_read, name='mark_as_read'),
+    path('api/notifications/requests/', views.get_friend_requests_api, name='api_get_friend_requests'),
+    path('api/notifications/handle/', views.handle_friend_request_api, name='api_handle_friend_request'),
 ]

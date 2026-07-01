@@ -690,3 +690,84 @@ def mark_messages_as_read(request):
     except Exception as e:
         logger.error(f"❌ 标记已读出错: {str(e)}")
         return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
+
+# 在你的 views.py 文件中添加
+
+@login_required
+def get_friend_requests_api(request):
+    """
+    API: 获取当前用户收到的所有待处理好友申请
+    """
+    try:
+        # 1. 查询所有发给当前用户，且状态为“待处理”的申请
+        # 使用 select_related 优化查询，一次性把申请人的用户信息也查出来
+        pending_requests = Friendship.objects.filter(
+            to_user=request.user,
+            status=Friendship.STATUS_PENDING
+        ).select_related('from_user').order_by('-date_added') # 按申请时间倒序
+
+        # 2. 整理数据，方便前端使用
+        requests_data = []
+        for req in pending_requests:
+            # 尝试获取申请人的头像
+            avatar_url = req.from_user.userprofile.avatar.url if hasattr(req.from_user, 'userprofile') and req.from_user.userprofile.avatar else '/static/default_avatar.png'
+            
+            requests_data.append({
+                'id': req.id, # 好友申请记录本身的ID，处理时需要
+                'from_user': {
+                    'id': req.from_user.id,
+                    'username': req.from_user.username,
+                    'avatar': avatar_url
+                },
+                'created_at': req.date_added.strftime('%Y-%m-%d %H:%M')
+            })
+
+        return JsonResponse({'status': 'ok', 'requests': requests_data})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
+
+# 在你的 views.py 文件中添加
+
+@login_required
+@require_POST
+def handle_friend_request_api(request):
+    """
+    API: 处理好友申请（同意或拒绝）
+    前端需要发送 POST 请求，包含 request_id (申请的ID) 和 action ('accept' 或 'reject')
+    """
+    try:
+        data = json.loads(request.body)
+        request_id = data.get('request_id')
+        action = data.get('action') # 'accept' 或 'reject'
+
+        if not request_id or action not in ['accept', 'reject']:
+            return JsonResponse({'status': 'error', 'msg': '参数错误'}, status=400)
+
+        # 1. 找到这条好友申请记录
+        # 必须确保这条申请是发给当前登录用户的
+        friendship_request = get_object_or_404(Friendship, id=request_id, to_user=request.user, status=Friendship.STATUS_PENDING)
+        
+        applicant = friendship_request.from_user # 申请人
+
+        if action == 'accept':
+            # --- 同意申请 ---
+            # 1. 将原申请记录状态改为“已通过”
+            friendship_request.status = Friendship.STATUS_ACCEPTED
+            friendship_request.save()
+
+            # 2. 创建一条反向的好友关系，确保双方互为好友
+            Friendship.objects.get_or_create(
+                from_user=request.user,
+                to_user=applicant,
+                defaults={'status': Friendship.STATUS_ACCEPTED}
+            )
+            return JsonResponse({'status': 'ok', 'msg': '已成为好友'})
+
+        elif action == 'reject':
+            # --- 拒绝申请 ---
+            # 直接删除这条待处理的申请记录即可
+            friendship_request.delete()
+            return JsonResponse({'status': 'ok', 'msg': '已拒绝好友申请'})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)

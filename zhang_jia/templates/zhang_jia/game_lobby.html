@@ -1,0 +1,308 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block content %}
+<body class="iron-triangle-lobby">
+
+<style>
+
+        /* 【新增/修改】覆盖 base.html 的 flex 布局 */
+    /* 让 .main-container 的内容在这个页面里变成上下排列 */
+    .lobby-page-wrapper {
+        display: flex !important;       /* 强制使用 Flex 布局 */
+        flex-direction: column !important; /* 【关键】强制纵向排列（上下结构） */
+        align-items: center;            /* 水平居中 */
+        width: 100%;
+        padding: 20px 0;                /* 上下留点空隙 */
+        box-sizing: border-box;
+    }
+
+    /* 1. 顶部标题区 */
+    .lobby-header {
+        width: 100%;                    /* 占满宽度 */
+        display: flex;
+        justify-content: center;        /* 内容居中 */
+        margin-bottom: 50px;            /* 标题和下面卡片的距离 */
+    }
+
+    .title-wrapper {
+        display: flex;
+        flex-direction: column;         /* 标题和小字垂直排列 */
+        align-items: center;            /* 小字居中对齐 */
+        text-align: center;
+    }
+
+    .lobby-title {
+        font-size: 3rem;
+        color: #ffd700;
+        text-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+        margin: 0;
+        letter-spacing: 5px;
+    }
+
+    
+    /* 2. 铁三角容器 (保持不变，确保它也是居中的) */
+    .triangle-container {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 80px;
+        width: 100%;
+        max-width: 1200px;
+    }
+
+    /* 3. 单个角色卡片 */
+    .character-slot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 240px;
+    }
+
+    /* 图片框样式 */
+    .avatar-box {
+        width: 180px;
+        height: 240px;
+        background-color: #2a2a2a;
+        border: 2px solid #444;
+        border-radius: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 20px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+
+    .avatar-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* 占位文字 */
+    .placeholder-text {
+        color: #555;
+        font-size: 14px;
+    }
+
+    /* 名字与状态 */
+    .char-name {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .host .char-name { color: #ffd700; }
+    
+    .char-role {
+        color: #aaa;
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+    }
+
+    /* 状态标签 */
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        margin-bottom: 20px;
+    }
+    .status-waiting { background-color: #333; color: #888; border: 1px solid #444; }
+    .status-ready { background-color: #28a745; color: white; }
+
+    /* 邀请按钮 */
+    .invite-btn {
+        background: linear-gradient(45deg, #ff8c00, #ff4500);
+        border: none;
+        color: white;
+        padding: 10px 25px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s;
+        box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .invite-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 69, 0, 0.5);
+    }
+
+    .invite-btn:disabled {
+        background: #444;
+        cursor: not-allowed;
+        box-shadow: none;
+        color: #888;
+    }
+
+</style>
+
+<!-- 1. 【总外壳】把所有内容包起来，防止被 base.html 挤压 -->
+<div class="lobby-main-container">
+
+    <!-- 2. 顶部标题区 -->
+    <div class="lobby-header">
+        <h1 class="lobby-title">🌲 森林铁三角</h1>
+    </div>
+
+    <!-- 3. 角色站位区 (三个卡片) -->
+    <div class="triangle-container">
+
+        <!-- 左侧：小哥位 -->
+        <div class="character-slot" id="slot-xiaoge">
+            <div class="avatar-box">
+                {% if xiaoge_user %}
+                    <img src="{{ xiaoge_user.avatar_url|default:'/static/img/xiaoge_placeholder.png' }}" alt="小哥">
+                {% else %}
+                    <span class="placeholder-text">Q版小哥图</span>
+                {% endif %}
+            </div>
+            
+            <div class="char-name">
+                {% if xiaoge_user %}{{ xiaoge_user.username }}{% else %}张起灵{% endif %}
+            </div>
+            <div class="char-role">战斗 / 跳跃</div>
+            
+            <div class="status-badge {% if xiaoge_user %}status-ready{% else %}status-waiting{% endif %}">
+                {% if xiaoge_user %}已就绪{% else %}等待加入...{% endif %}
+            </div>
+
+            {% if not xiaoge_user %}
+            <button class="invite-btn" onclick="openInviteModal('xiaoge')">
+                📩 邀请好友
+            </button>
+            {% endif %}
+        </div>
+
+        <!-- 中间：房主位 (吴邪/齐黑瞎) -->
+        <div class="character-slot host">
+            <div class="avatar-box">
+                 <!-- 房主肯定有人 -->
+                <img src="{{ user.avatar_url|default:'/static/img/wuxie_placeholder.png' }}" alt="房主">
+            </div>
+            
+            <div class="char-name">{{ user.username }} (房主)</div>
+            <div class="char-role">解密 / 提示</div>
+            
+            <div class="status-badge status-ready">已就绪</div>
+            
+            <!-- 占位，保持和其他卡片高度一致 -->
+            <div style="height: 41px;"></div> 
+        </div>
+
+        <!-- 右侧：胖子位 -->
+        <div class="character-slot" id="slot-pangzi">
+            <div class="avatar-box">
+                {% if pangzi_user %}
+                    <img src="{{ pangzi_user.avatar_url|default:'/static/img/pangzi_placeholder.png' }}" alt="胖子">
+                {% else %}
+                    <span class="placeholder-text">Q版胖子图</span>
+                {% endif %}
+            </div>
+            
+            <div class="char-name">
+                {% if pangzi_user %}{{ pangzi_user.username }}{% else %}王胖子{% endif %}
+            </div>
+            <div class="char-role">火力 / 负重</div>
+
+            <div class="status-badge {% if pangzi_user %}status-ready{% else %}status-waiting{% endif %}">
+                {% if pangzi_user %}已就绪{% else %}等待加入...{% endif %}
+            </div>
+
+            {% if not pangzi_user %}
+            <button class="invite-btn" onclick="openInviteModal('pangzi')">
+                📩 邀请好友
+            </button>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<!-- === 弹窗部分 (保持不变) === -->
+<div id="invite-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:100;">
+    <div style="background:#222; width:400px; margin: 100px auto; padding:20px; border-radius:10px; border:1px solid #444;">
+        <h3 style="color:white; margin-top:0;">选择队友加入队伍</h3>
+        <ul id="friend-list" style="list-style:none; padding:0;">
+            <!-- JS 填充好友列表 -->
+        </ul>
+        <button onclick="closeInviteModal()" style="margin-top:10px; padding:5px 15px; background:#444; color:white; border:none; cursor:pointer;">关闭</button>
+    </div>
+</div>
+
+<script>
+    // 当前正在邀请的角色位置 ('xiaoge' 或 'pangzi')
+    let currentInviteRole = ''; 
+
+    function openInviteModal(role) {
+        currentInviteRole = role;
+        const modal = document.getElementById('invite-modal');
+        const list = document.getElementById('friend-list');
+        
+        // 清空旧数据
+        list.innerHTML = '<li style="color:#888; text-align:center;">加载中...</li>';
+        modal.style.display = 'block';
+
+        // 获取好友列表 (假设你有一个 API 或者通过 WebSocket 请求)
+        // 这里模拟一个 fetch 请求
+        fetch('/api/get-friends/') 
+            .then(res => res.json())
+            .then(data => {
+                list.innerHTML = '';
+                if(data.friends && data.friends.length > 0) {
+                    data.friends.forEach(friend => {
+                        const li = document.createElement('li');
+                        li.style.padding = '10px';
+                        li.style.borderBottom = '1px solid #333';
+                        li.style.cursor = 'pointer';
+                        li.style.color = '#ddd';
+                        li.innerHTML = `
+                            <span>${friend.username}</span>
+                            <span style="float:right; color:${friend.online ? '#0f0' : '#666'}">
+                                ${friend.online ? '在线' : '离线'}
+                            </span>
+                        `;
+                        // 点击好友发送邀请
+                        li.onclick = () => sendInvitation(friend.id, friend.username);
+                        list.appendChild(li);
+                    });
+                } else {
+                    list.innerHTML = '<li style="color:#888; text-align:center;">暂无在线好友</li>';
+                }
+            })
+            .catch(err => {
+                list.innerHTML = '<li style="color:red; text-align:center;">加载失败</li>';
+            });
+    }
+
+    function closeInviteModal() {
+        document.getElementById('invite-modal').style.display = 'none';
+    }
+
+    function sendInvitation(friendId, friendName) {
+        // 1. 关闭弹窗
+        closeInviteModal();
+        
+        // 2. 发送 WebSocket 消息
+        // 注意：这里我们告诉后端，我要邀请谁(friendId)，以及让他来填哪个坑(role)
+        if (window.lobbySocket && window.lobbySocket.readyState === WebSocket.OPEN) {
+            window.lobbySocket.send(JSON.stringify({
+                'type': 'invite_friend',
+                'target_user_id': friendId,
+                'role': currentInviteRole // 关键：告诉后端是邀请他来当小哥还是胖子
+            }));
+            
+            alert(`已向 ${friendName} 发送${currentInviteRole === 'xiaoge' ? '小哥' : '胖子'}位邀请！`);
+        } else {
+            alert('网络连接断开，请刷新重试');
+        }
+    }
+</script>
+
+</body>
+{% endblock %}

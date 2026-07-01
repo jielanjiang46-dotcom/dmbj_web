@@ -165,3 +165,8 @@ def api_snake_leaderboard(request):
         'leaderboard': leaderboard,
         'my_username': current_user_name # <--- 前端拿到这个就能高亮显示了！
     })
+
+@login_required  # 建议加上登录验证，只有登录用户才能进大厅
+def game_lobby(request):
+    # 渲染我们刚才写好的游戏大厅模板
+    return render(request, 'zhang_jia/game_lobby.html')

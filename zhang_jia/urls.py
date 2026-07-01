@@ -12,4 +12,5 @@ urlpatterns = [
     path('api/snake_action/', views.api_snake_action, name='api_snake_action'),
     path('api/get-snake-score/', views.get_snake_score, name='get_snake_score'),
     path('api_snake_leaderboard/', views.api_snake_leaderboard, name='api_snake_leaderboard'),
+    path('lobby/', views.game_lobby, name='game_lobby'),
 ]
