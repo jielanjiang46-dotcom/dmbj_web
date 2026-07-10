@@ -14,4 +14,5 @@ urlpatterns = [
     path('api_snake_leaderboard/', views.api_snake_leaderboard, name='api_snake_leaderboard'),
     path('lobby/', views.game_lobby, name='game_lobby'),
     path('api/game/invite/', views.send_game_invite, name='send_game_invite'),
+    path('api/game/accept_join/',views.accept_join,name='accept_join'),
 ]

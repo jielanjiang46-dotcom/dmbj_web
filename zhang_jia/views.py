@@ -6,6 +6,9 @@ import json
 from .consumers import GAME_ROOMS
 from django.views.decorators.http import require_GET
 from django.views.decorators.http import require_POST
+from .models import GameRoom, GamePlayer
+from accounts.models import Notification
+
 
 # Create your views here.
 def memory(request):
@@ -167,10 +170,32 @@ def api_snake_leaderboard(request):
         'my_username': current_user_name # <--- 前端拿到这个就能高亮显示了！
     })
 
-@login_required  # 建议加上登录验证，只有登录用户才能进大厅
+@login_required
 def game_lobby(request):
-    # 渲染我们刚才写好的游戏大厅模板
-    return render(request, 'zhang_jia/game_lobby.html')
+
+    # 1. 创建一个森林铁三角房间
+    room = GameRoom.objects.create(
+        host=request.user,
+        game_type="forest_triangle"
+    )
+
+
+    # 2. 让当前用户成为吴邪
+    GamePlayer.objects.create(
+        room=room,
+        user=request.user,
+        role="wu_xie"
+    )
+
+
+    # 3. 打开页面，并把房间号交给前端
+    return render(
+        request,
+        'zhang_jia/game_lobby.html',
+        {
+            'room_id': room.room_id
+        }
+    )
 
 @login_required
 @require_POST
@@ -188,3 +213,71 @@ def send_game_invite(request):
     print(f"🔥 游戏邀请: {request.user.username} 邀请 {target_user_id} 担任 {role}，房间 {room_id}")
     
     return JsonResponse({'status': 'ok', 'msg': '邀请已发送'})
+
+@login_required
+@require_POST
+def send_game_invite(request):
+
+    data = json.loads(request.body)
+
+    target_user_id = data.get('target_user_id')
+    role = data.get('role')
+    room_id = data.get('room_id')
+
+
+    target_user = User.objects.get(
+        id=target_user_id
+    )
+
+
+    Notification.objects.create(
+        from_user=request.user,
+        to_user=target_user,
+        notification_type='game_invite',
+        message=f"""
+邀请你加入森林铁三角游戏
+
+房间号:{room_id}
+
+角色:{role}
+"""
+    )
+
+
+    return JsonResponse({
+        "status":"ok"
+    })
+
+@login_required
+@require_POST
+def accept_join(request):
+
+    data = json.loads(request.body)
+
+    room_id = data.get('room_id')
+
+
+    try:
+        room = GameRoom.objects.get(
+            room_id=room_id
+        )
+
+        GamePlayer.objects.create(
+            room=room,
+            user=request.user,
+            role="待选择"
+        )
+
+
+        return JsonResponse({
+            "status":"ok",
+            "room_id":room_id
+        })
+
+
+    except GameRoom.DoesNotExist:
+
+        return JsonResponse({
+            "status":"error",
+            "msg":"房间不存在"
+        },status=404)
