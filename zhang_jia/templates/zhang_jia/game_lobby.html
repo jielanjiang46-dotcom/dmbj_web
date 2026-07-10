@@ -183,7 +183,11 @@
         <div class="character-slot host">
             <div class="avatar-box">
                  <!-- 房主肯定有人 -->
-                <img src="{{ user.avatar_url|default:'/static/img/wuxie_placeholder.png' }}" alt="房主">
+                {% if pangzi_user %}
+                    <img src="{{ pangzi_user.avatar_url|default:'/static/img/pangzi_placeholder.png' }}" alt="胖子">
+                {% else %}
+                    <span class="placeholder-text">Q版吴邪图</span>
+                {% endif %}
             </div>
             
             <div class="char-name">{{ user.username }} (房主)</div>
@@ -240,68 +244,103 @@
     let currentInviteRole = ''; 
 
     function openInviteModal(role) {
-        currentInviteRole = role;
-        const modal = document.getElementById('invite-modal');
-        const list = document.getElementById('friend-list');
-        
-        // 清空旧数据
-        list.innerHTML = '<li style="color:#888; text-align:center;">加载中...</li>';
-        modal.style.display = 'block';
+    currentInviteRole = role; // 记录当前要邀请的位置（如 'xiaoge' 或 'pangzi'）
+    const modal = document.getElementById('invite-modal');
+    const list = document.getElementById('friend-list');
+    
+    // 1. 显示弹窗并提示加载中
+    modal.style.display = 'block';
+    list.innerHTML = '<li style="color:#888; text-align:center; padding: 20px;">正在联系青铜门网络...</li>';
 
-        // 获取好友列表 (假设你有一个 API 或者通过 WebSocket 请求)
-        // 这里模拟一个 fetch 请求
-        fetch('/api/get-friends/') 
-            .then(res => res.json())
-            .then(data => {
-                list.innerHTML = '';
-                if(data.friends && data.friends.length > 0) {
-                    data.friends.forEach(friend => {
-                        const li = document.createElement('li');
-                        li.style.padding = '10px';
-                        li.style.borderBottom = '1px solid #333';
-                        li.style.cursor = 'pointer';
-                        li.style.color = '#ddd';
-                        li.innerHTML = `
-                            <span>${friend.username}</span>
-                            <span style="float:right; color:${friend.online ? '#0f0' : '#666'}">
-                                ${friend.online ? '在线' : '离线'}
-                            </span>
-                        `;
-                        // 点击好友发送邀请
-                        li.onclick = () => sendInvitation(friend.id, friend.username);
-                        list.appendChild(li);
-                    });
-                } else {
-                    list.innerHTML = '<li style="color:#888; text-align:center;">暂无在线好友</li>';
-                }
-            })
-            .catch(err => {
-                list.innerHTML = '<li style="color:red; text-align:center;">加载失败</li>';
-            });
-    }
+    // 2. 发起请求 (注意：这里改成了 /api/friends/)
+    fetch('/api/friends/') 
+        .then(res => {
+            if (!res.ok) throw new Error('Network response was not ok');
+            return res.json();
+        })
+        .then(data => {
+            list.innerHTML = ''; // 清空加载提示
+            
+            // 检查数据状态
+            if (data.status === 'ok' && data.friends && data.friends.length > 0) {
+                data.friends.forEach(friend => {
+                    const li = document.createElement('li');
+                    
+                    // 设置样式：深色背景、鼠标悬停效果
+                    li.style.padding = '12px';
+                    li.style.borderBottom = '1px solid #333';
+                    li.style.cursor = 'pointer';
+                    li.style.color = '#ddd';
+                    li.style.display = 'flex'; // 使用 Flex 布局对齐头像和名字
+                    li.style.alignItems = 'center';
+                    li.style.transition = 'background 0.2s';
+                    
+                    // 处理头像：如果有头像就用，没有就用默认占位符
+                    // 注意：这里假设后端返回的 avatar 是相对路径，如果是完整URL则不需要拼接
+                    const avatarSrc = friend.avatar ? friend.avatar : '/media/avatars'; 
+
+                    li.innerHTML = `
+                        <img src="${avatarSrc}" style="width:30px; height:30px; border-radius:50%; margin-right:10px; background:#444;">
+                        <span style="flex-grow:1;">${friend.username}</span>
+                        <span style="font-size:12px; color:${friend.is_online ? '#4caf50' : '#666'}">
+                            ${friend.is_online ? '● 在线' : '○ 离线'}
+                        </span>
+                    `;
+
+                    // 鼠标悬停高亮效果
+                    li.onmouseover = () => li.style.background = '#333';
+                    li.onmouseout = () => li.style.background = 'transparent';
+
+                    // 点击好友发送邀请
+                    li.onclick = () => sendInvitation(friend.id, friend.username);
+                    
+                    list.appendChild(li);
+                });
+            } else {
+                list.innerHTML = '<li style="color:#888; text-align:center; padding: 20px;">暂无好友或好友不在线</li>';
+            }
+        })
+        .catch(err => {
+            console.error('Fetch error:', err);
+            list.innerHTML = '<li style="color:#ff4d4f; text-align:center; padding: 20px;">连接古墓网络失败<br><small>请检查控制台报错</small></li>';
+        });
+}
 
     function closeInviteModal() {
         document.getElementById('invite-modal').style.display = 'none';
     }
 
     function sendInvitation(friendId, friendName) {
-        // 1. 关闭弹窗
-        closeInviteModal();
-        
-        // 2. 发送 WebSocket 消息
-        // 注意：这里我们告诉后端，我要邀请谁(friendId)，以及让他来填哪个坑(role)
-        if (window.lobbySocket && window.lobbySocket.readyState === WebSocket.OPEN) {
-            window.lobbySocket.send(JSON.stringify({
-                'type': 'invite_friend',
-                'target_user_id': friendId,
-                'role': currentInviteRole // 关键：告诉后端是邀请他来当小哥还是胖子
-            }));
-            
-            alert(`已向 ${friendName} 发送${currentInviteRole === 'xiaoge' ? '小哥' : '胖子'}位邀请！`);
+    closeInviteModal();
+
+    const role = currentInviteRole;
+    const roleName = role === 'xiaoge' ? '小哥' : '胖子';
+
+    // 直接调用 Base APP 的接口，创建一个"游戏邀请"通知
+    fetch('/api/game/invite/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+        },
+        body: JSON.stringify({
+            target_user_id: friendId,
+            role: role,
+            room_id: '{{ room_id }}'  // 当前游戏房间ID
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            alert(`✅ 已向 ${friendName} 发送${roleName}位邀请！`);
         } else {
-            alert('网络连接断开，请刷新重试');
+            alert(`❌ 邀请失败：${data.msg}`);
         }
-    }
+    })
+    .catch(err => {
+        alert('网络出错，请重试');
+    });
+}
 </script>
 
 </body>

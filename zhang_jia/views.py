@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 import json
 from .consumers import GAME_ROOMS
 from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_POST
 
 # Create your views here.
 def memory(request):
@@ -170,3 +171,20 @@ def api_snake_leaderboard(request):
 def game_lobby(request):
     # 渲染我们刚才写好的游戏大厅模板
     return render(request, 'zhang_jia/game_lobby.html')
+
+@login_required
+@require_POST
+def send_game_invite(request):
+    """发送游戏邀请通知"""
+    import json
+    data = json.loads(request.body)
+    target_user_id = data.get('target_user_id')
+    role = data.get('role')
+    room_id = data.get('room_id')
+    
+    # 创建一条通知记录（你需要一个 Notification 模型）
+    # 或者复用 Friendship 表，加一个字段区分类型
+    # 简单起见，先打印日志
+    print(f"🔥 游戏邀请: {request.user.username} 邀请 {target_user_id} 担任 {role}，房间 {room_id}")
+    
+    return JsonResponse({'status': 'ok', 'msg': '邀请已发送'})

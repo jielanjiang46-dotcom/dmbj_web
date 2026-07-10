@@ -62,3 +62,25 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.sender.username} -> {self.receiver.username}: {self.content[:10]}..."
+
+class Notification(models.Model):
+    # 通知类型：方便以后扩展，比如 'game_invite', 'system_msg' 等
+    TYPE_CHOICES = [
+        ('game_invite', '游戏邀请'),
+    ]
+
+    from_user = models.ForeignKey(User, related_name='sent_notifications', on_delete=models.CASCADE)
+    to_user = models.ForeignKey(User, related_name='received_notifications', on_delete=models.CASCADE)
+    
+    notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='friend_request')
+    message = models.TextField(blank=True, null=True)  # 附加信息，比如游戏房间号、角色等
+    
+    is_read = models.BooleanField(default=False)       # 是否已读
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']  # 按时间倒序排列
+        unique_together = ('from_user', 'to_user', 'notification_type') # 防止重复发送
+
+    def __str__(self):
+        return f'{self.from_user} -> {self.to_user} ({self.notification_type})'

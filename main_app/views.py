@@ -5,9 +5,12 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Topic, Entry, Comment, Like
 from .forms import TopicForm, EntryForm
-from accounts.models import UserProfile, Friendship, Message  # 确保 Friendship 模型已导入
+from accounts.models import UserProfile, Friendship, Message, Notification  # 确保 Friendship 模型已导入
 import json
 from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 def index(request):
     """app的主页"""
@@ -617,6 +620,7 @@ def check_unread_count(request):
         'chat_unread': unread_count  # ✅ 就改这里！把 'unread_count' 改成 'chat_unread'
     })
 
+
 @login_required
 def get_friends_api(request):
     """
@@ -629,30 +633,50 @@ def get_friends_api(request):
             Q(to_user=request.user, status=Friendship.STATUS_ACCEPTED)
         )
 
-        # 2. 提取出真正的好友对象（排除掉自己）
-        friends = []
+        # 2. 提取出真正的好友对象（使用 set 自动去重）
+        unique_friends = set()
         for f in friendships:
             if f.from_user == request.user:
-                friends.append(f.to_user)
+                unique_friends.add(f.to_user)
             else:
-                friends.append(f.from_user)
+                unique_friends.add(f.from_user)
 
         # 3. 将好友数据整理成 JSON 格式
         friends_data = []
-        for user in friends:
-            # 尝试获取用户的头像，如果没有则给一个默认值
-            avatar_url = user.userprofile.avatar.url if hasattr(user, 'userprofile') and user.userprofile.avatar else '/static/default_avatar.png'
+        
+        # 【注意】确保 media/avatars/ 下确实有这张图
+        DEFAULT_AVATAR = '/media/avatars/default.jpg' 
+
+        for user in unique_friends:
+            avatar_url = DEFAULT_AVATAR
+            
+            try:
+                # 【核心修改点】
+                # 根据你的 models.py，关联名是 'profile' 而不是 'userprofile'
+                # hasattr 检查是否存在 profile 对象，and 后面检查 avatar 字段是否有值
+                if hasattr(user, 'profile') and user.profile.avatar:
+                    real_url = user.profile.avatar.url
+                    if real_url:
+                        avatar_url = real_url
+            except (ValueError, AttributeError, OSError) as e:
+                # 如果出错（例如文件丢失），打印错误以便调试，并继续使用默认头像
+                print(f"获取用户 {user.username} 头像失败: {e}")
+                pass
+
             friends_data.append({
                 'id': user.id,
                 'username': user.username,
-                'avatar': avatar_url
+                'avatar': avatar_url,
+                # 补充 is_online 字段
+                'is_online': getattr(user, 'is_active', False) 
             })
 
         return JsonResponse({'status': 'ok', 'friends': friends_data})
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
-
 # 在 from djang.txt 文件中添加这个新函数
 
 import logging
@@ -694,80 +718,97 @@ def mark_messages_as_read(request):
 # 在你的 views.py 文件中添加
 
 @login_required
-def get_friend_requests_api(request):
+@require_GET
+def get_notification_requests(request):
     """
-    API: 获取当前用户收到的所有待处理好友申请
+    获取当前用户收到的所有未读通知（好友申请、游戏邀请等）
     """
-    try:
-        # 1. 查询所有发给当前用户，且状态为“待处理”的申请
-        # 使用 select_related 优化查询，一次性把申请人的用户信息也查出来
-        pending_requests = Friendship.objects.filter(
-            to_user=request.user,
-            status=Friendship.STATUS_PENDING
-        ).select_related('from_user').order_by('-date_added') # 按申请时间倒序
+    notifications = Notification.objects.filter(
+        to_user=request.user, 
+        is_read=False
+    ).select_related('from_user')  # select_related 优化查询性能，避免 N+1 问题
 
-        # 2. 整理数据，方便前端使用
-        requests_data = []
-        for req in pending_requests:
-            # 尝试获取申请人的头像
-            avatar_url = req.from_user.userprofile.avatar.url if hasattr(req.from_user, 'userprofile') and req.from_user.userprofile.avatar else '/static/default_avatar.png'
-            
-            requests_data.append({
-                'id': req.id, # 好友申请记录本身的ID，处理时需要
-                'from_user': {
-                    'id': req.from_user.id,
-                    'username': req.from_user.username,
-                    'avatar': avatar_url
-                },
-                'created_at': req.date_added.strftime('%Y-%m-%d %H:%M')
-            })
+    data = []
+    for n in notifications:
+        data.append({
+            'id': n.id,
+            'from_user': {
+                'id': n.from_user.id,
+                'username': n.from_user.username,
+                'avatar': n.from_user.avatar.url if hasattr(n.from_user, 'avatar') and n.from_user.avatar else None
+            },
+            'type': n.notification_type,
+            'message': n.message,
+            'created_at': n.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        })
+        
+    return JsonResponse({'status': 'ok', 'data': data})
 
-        return JsonResponse({'status': 'ok', 'requests': requests_data})
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
-
-# 在你的 views.py 文件中添加
 
 @login_required
 @require_POST
-def handle_friend_request_api(request):
+def send_game_invite(request):
     """
-    API: 处理好友申请（同意或拒绝）
-    前端需要发送 POST 请求，包含 request_id (申请的ID) 和 action ('accept' 或 'reject')
+    发送游戏邀请（写入 Notification 表）
+    """
+    try:
+        body = json.loads(request.body)
+        target_user_id = body.get('target_user_id')
+        role = body.get('role')
+        room_id = body.get('room_id')
+        
+        target_user = User.objects.get(id=target_user_id)
+        
+        # 创建一条游戏邀请通知
+        Notification.objects.update_or_create(
+            from_user=request.user,
+            to_user=target_user,
+            notification_type='game_invite',
+            defaults={
+                'message': json.dumps({'role': role, 'room_id': room_id}),
+                'is_read': False
+            }
+        )
+        
+        print(f"🔥 [游戏邀请] {request.user.username} -> {target_user.username}, 房间: {room_id}")
+        return JsonResponse({'status': 'ok', 'msg': '邀请已发送'})
+        
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'msg': '目标用户不存在'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'msg': str(e)}, status=400)
+
+@login_required
+@require_POST
+def accept_join_request(request):
+    """
+    处理【同意加入】的逻辑
+    前端传参: { "room_id": "xxx", "requester_id": 123 }
     """
     try:
         data = json.loads(request.body)
-        request_id = data.get('request_id')
-        action = data.get('action') # 'accept' 或 'reject'
-
-        if not request_id or action not in ['accept', 'reject']:
-            return JsonResponse({'status': 'error', 'msg': '参数错误'}, status=400)
-
-        # 1. 找到这条好友申请记录
-        # 必须确保这条申请是发给当前登录用户的
-        friendship_request = get_object_or_404(Friendship, id=request_id, to_user=request.user, status=Friendship.STATUS_PENDING)
+        room_id = data.get('room_id')
+        requester_id = data.get('requester_id') # 想要加入的人的ID
         
-        applicant = friendship_request.from_user # 申请人
+        # TODO: 这里你应该去数据库把那个 Notification 标记为已读/已处理
+        # Notification.objects.filter(...).update(is_read=True, status='accepted')
 
-        if action == 'accept':
-            # --- 同意申请 ---
-            # 1. 将原申请记录状态改为“已通过”
-            friendship_request.status = Friendship.STATUS_ACCEPTED
-            friendship_request.save()
+        # 【关键步骤】通过 WebSocket 广播消息
+        # 告诉房间里所有人：这个人加入了！
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"game_room_{room_id}", # 发送给特定的房间组
+            {
+                "type": "user_joined", # 对应 consumers.py 里的方法名
+                "message": {
+                    "action": "join_success",
+                    "user_id": requester_id,
+                    "username": request.user.username # 或者是 requester 的名字，看你怎么查
+                }
+            }
+        )
 
-            # 2. 创建一条反向的好友关系，确保双方互为好友
-            Friendship.objects.get_or_create(
-                from_user=request.user,
-                to_user=applicant,
-                defaults={'status': Friendship.STATUS_ACCEPTED}
-            )
-            return JsonResponse({'status': 'ok', 'msg': '已成为好友'})
-
-        elif action == 'reject':
-            # --- 拒绝申请 ---
-            # 直接删除这条待处理的申请记录即可
-            friendship_request.delete()
-            return JsonResponse({'status': 'ok', 'msg': '已拒绝好友申请'})
+        return JsonResponse({'status': 'ok', 'msg': '邀请已通过'})
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)

@@ -231,84 +231,83 @@ class SnakeConsumer(AsyncWebsocketConsumer):
 
 # game/consumers.py
 
+# consumers.py
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from .services import get_room_players, add_player_to_room, remove_player_from_room
+
 
 class IronTriangleConsumer(AsyncWebsocketConsumer):
+    
     async def connect(self):
-        # 1. 从 URL 路由中获取房间号
-        self.room_id = self.scope['url_route']['kwargs']['room_id']
+        # 1. 获取房间信息
+        self.room_id = str(self.scope['url_route']['kwargs']['room_id'])
         self.room_group_name = f'game_room_{self.room_id}'
         
-        # 2. 加入房间对应的频道组
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+        # 2. 获取当前用户信息 (如果未登录，给个默认名)
+        user = self.scope.get("user")
+        self.username = str(user) if user and not user.is_anonymous else f"Player_{self.channel_name[-4:]}"
         
-        # 3. 接受 WebSocket 连接
+        # 3. 加入频道组并接受连接
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
         
-        # 4. 获取当前房间内的玩家列表，并广播给所有人
+        # 4. 将玩家加入房间，并广播最新名单
+        await database_sync_to_async(add_player_to_room)(
+            self.room_id, 
+            {'username': self.username, 'channel_name': self.channel_name}
+        )
         await self.broadcast_room_info()
 
     async def disconnect(self, close_code):
-        # 离开房间组
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
+        # 1. 离开频道组
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        
+        # 2. 从房间移除玩家，并广播最新名单
+        await database_sync_to_async(remove_player_from_room)(self.room_id, self.username)
+        await self.broadcast_room_info()
 
-    # 接收来自 WebSocket 的消息 (前端发来的)
     async def receive(self, text_data):
+        """接收前端消息"""
         data = json.loads(text_data)
         action = data.get('action')
 
-        if action == 'join':
-            # 玩家加入时，更新房间信息并广播
-            # 这里可以记录玩家信息，比如从 session 获取用户名
-            username = data.get('username', '神秘人')
-            await self.broadcast_room_info()
-
-        elif action == 'start_game':
-            # 房主点击开始，广播给所有人跳转
+        if action == 'start_game':
             await self.channel_layer.group_send(
                 self.room_group_name,
-                {
-                    'type': 'game_start',
-                    'room_id': self.room_id
-                }
+                {'type': 'game_start', 'room_id': self.room_id}
             )
 
-    # 广播房间信息给组内所有人
     async def broadcast_room_info(self):
-        # 实际开发中，这里应该从 Redis/缓存 中获取当前房间的玩家字典
-        # 这里我们先写一个模拟数据，后续你可以替换为真实的缓存逻辑
-        players = {
-            'wuxie': '吴邪',
-            'xiaoge': '张起灵',
-            'pangzi': None  # 假设胖子还没来
-        }
+        """广播房间信息"""
+        # 调用服务层获取数据
+        players = await database_sync_to_async(get_room_players)(self.room_id)
         
         await self.channel_layer.group_send(
             self.room_group_name,
-            {
-                'type': 'room_info',
-                'players': players
-            }
+            {'type': 'room_info', 'players': players}
         )
 
-    # 处理广播：发送房间信息
     async def room_info(self, event):
+        """处理广播：发送房间信息给前端"""
         await self.send(text_data=json.dumps({
             'type': 'room_info',
             'players': event['players']
         }))
 
-    # 处理广播：游戏开始
     async def game_start(self, event):
+        """处理广播：游戏开始"""
         await self.send(text_data=json.dumps({
             'type': 'game_start',
             'room_id': event['room_id']
+        }))
+
+    async def user_joined(self, event):
+        message = event['message']
+        
+        # 将消息发送给 WebSocket 连接的客户端（前端）
+        await self.send(text_data=json.dumps({
+            'type': 'notification', # 前端根据 type 判断类型
+            'data': message
         }))
