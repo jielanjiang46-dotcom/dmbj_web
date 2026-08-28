@@ -235,7 +235,15 @@ class SnakeConsumer(AsyncWebsocketConsumer):
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from .services import get_room_players, add_player_to_room, remove_player_from_room
+from .models import GamePlayer, GameRoom
+
+IRON_GAME_STATES = {}
+
+ROLE_STARTS = {
+    GamePlayer.ROLE_WU_XIE: {"x": 2, "y": 6},
+    GamePlayer.ROLE_XIAOGE: {"x": 2, "y": 4},
+    GamePlayer.ROLE_PANGZI: {"x": 2, "y": 8},
+}
 
 
 class IronTriangleConsumer(AsyncWebsocketConsumer):
@@ -245,27 +253,28 @@ class IronTriangleConsumer(AsyncWebsocketConsumer):
         self.room_id = str(self.scope['url_route']['kwargs']['room_id'])
         self.room_group_name = f'game_room_{self.room_id}'
         
-        # 2. 获取当前用户信息 (如果未登录，给个默认名)
+        # 2. 只允许已经通过邀请加入数据库房间的用户连接
         user = self.scope.get("user")
-        self.username = str(user) if user and not user.is_anonymous else f"Player_{self.channel_name[-4:]}"
+        if not user or user.is_anonymous or not await self.is_room_player(user.id):
+            await self.close(code=4403)
+            return
+        self.username = user.username
         
         # 3. 加入频道组并接受连接
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
-        
-        # 4. 将玩家加入房间，并广播最新名单
-        await database_sync_to_async(add_player_to_room)(
-            self.room_id, 
-            {'username': self.username, 'channel_name': self.channel_name}
-        )
+        room_status = await self.get_room_status()
+        if room_status == 'playing':
+            await self.ensure_game_state()
         await self.broadcast_room_info()
+        if room_status == 'playing':
+            await self.send_game_state()
 
     async def disconnect(self, close_code):
         # 1. 离开频道组
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
         
-        # 2. 从房间移除玩家，并广播最新名单
-        await database_sync_to_async(remove_player_from_room)(self.room_id, self.username)
+        # 离线不会删除玩家席位，刷新页面后仍可回到原房间。
         await self.broadcast_room_info()
 
     async def receive(self, text_data):
@@ -274,15 +283,40 @@ class IronTriangleConsumer(AsyncWebsocketConsumer):
         action = data.get('action')
 
         if action == 'start_game':
+            can_start = await self.can_start_game()
+            if not can_start:
+                await self.send(text_data=json.dumps({
+                    'type': 'error', 'message': '只有房主能在三人到齐后开启机关。'
+                }))
+                return
+            await self.ensure_game_state(reset=True)
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {'type': 'game_start', 'room_id': self.room_id}
             )
+            await self.broadcast_game_state()
+        elif action == 'move':
+            direction = data.get('direction')
+            if direction not in {'up', 'down', 'left', 'right'}:
+                return
+            role = await self.get_player_role(self.scope['user'].id)
+            state = IRON_GAME_STATES.get(self.room_id)
+            if not role or not state:
+                return
+            player = state['players'].get(str(self.scope['user'].id))
+            if not player:
+                return
+            distance = 2 if role == GamePlayer.ROLE_XIAOGE else 1
+            dx, dy = {'up': (0, -distance), 'down': (0, distance), 'left': (-distance, 0), 'right': (distance, 0)}[direction]
+            player['x'] = max(0, min(19, player['x'] + dx))
+            player['y'] = max(0, min(11, player['y'] + dy))
+            player['facing'] = direction
+            await self.broadcast_game_state()
 
     async def broadcast_room_info(self):
         """广播房间信息"""
         # 调用服务层获取数据
-        players = await database_sync_to_async(get_room_players)(self.room_id)
+        players = await self.get_players()
         
         await self.channel_layer.group_send(
             self.room_group_name,
@@ -303,6 +337,49 @@ class IronTriangleConsumer(AsyncWebsocketConsumer):
             'room_id': event['room_id']
         }))
 
+    async def game_state(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'game_state',
+            'state': event['state'],
+            'my_id': str(self.scope['user'].id),
+        }))
+
+    async def broadcast_game_state(self):
+        state = IRON_GAME_STATES.get(self.room_id)
+        if state:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {'type': 'game_state', 'state': state},
+            )
+
+    async def send_game_state(self):
+        state = IRON_GAME_STATES.get(self.room_id)
+        if state:
+            await self.send(text_data=json.dumps({
+                'type': 'game_state', 'state': state,
+                'my_id': str(self.scope['user'].id),
+            }))
+
+    async def ensure_game_state(self, reset=False):
+        if self.room_id in IRON_GAME_STATES and not reset:
+            return
+        players = await self.get_players()
+        IRON_GAME_STATES[self.room_id] = {
+            'width': 20,
+            'height': 12,
+            'players': {
+                str(player['user_id']): {
+                    'id': str(player['user_id']),
+                    'username': player['user__username'],
+                    'role': player['role'],
+                    'x': ROLE_STARTS[player['role']]['x'],
+                    'y': ROLE_STARTS[player['role']]['y'],
+                    'facing': 'right',
+                }
+                for player in players
+            },
+        }
+
     async def user_joined(self, event):
         message = event['message']
         
@@ -311,3 +388,43 @@ class IronTriangleConsumer(AsyncWebsocketConsumer):
             'type': 'notification', # 前端根据 type 判断类型
             'data': message
         }))
+
+    @database_sync_to_async
+    def is_room_player(self, user_id):
+        return GamePlayer.objects.filter(room__room_id=self.room_id, user_id=user_id).exists()
+
+    @database_sync_to_async
+    def get_players(self):
+        return list(
+            GamePlayer.objects.filter(room__room_id=self.room_id)
+            .select_related('user')
+            .values('user_id', 'user__username', 'role')
+        )
+
+    @database_sync_to_async
+    def get_player_role(self, user_id):
+        return GamePlayer.objects.filter(
+            room__room_id=self.room_id, user_id=user_id
+        ).values_list('role', flat=True).first()
+
+    @database_sync_to_async
+    def get_room_status(self):
+        return GameRoom.objects.filter(room_id=self.room_id).values_list('status', flat=True).first()
+
+    @database_sync_to_async
+    def can_start_game(self):
+        try:
+            room = GameRoom.objects.get(room_id=self.room_id)
+        except GameRoom.DoesNotExist:
+            return False
+        roles = set(room.players.values_list('role', flat=True))
+        ready = roles == {
+            GamePlayer.ROLE_WU_XIE,
+            GamePlayer.ROLE_XIAOGE,
+            GamePlayer.ROLE_PANGZI,
+        }
+        if room.host_id == self.scope['user'].id and ready:
+            room.status = 'playing'
+            room.save(update_fields=['status'])
+            return True
+        return False

@@ -615,9 +615,11 @@ def get_messages_api(request):
 def check_unread_count(request):
     """ 检查当前用户所有未读消息的总数 """
     unread_count = Message.objects.filter(receiver=request.user, is_read=False).count()
+    notify_count = Notification.objects.filter(to_user=request.user, is_read=False).count()
     return JsonResponse({
         'status': 'ok',
-        'chat_unread': unread_count  # ✅ 就改这里！把 'unread_count' 改成 'chat_unread'
+        'chat_unread': unread_count,
+        'notify_unread': notify_count,
     })
 
 
@@ -735,7 +737,11 @@ def get_notification_requests(request):
             'from_user': {
                 'id': n.from_user.id,
                 'username': n.from_user.username,
-                'avatar': n.from_user.avatar.url if hasattr(n.from_user, 'avatar') and n.from_user.avatar else None
+                'avatar': (
+                    n.from_user.profile.avatar.url
+                    if hasattr(n.from_user, 'profile') and n.from_user.profile.avatar
+                    else '/media/avatars/default.jpg'
+                )
             },
             'type': n.notification_type,
             'message': n.message,

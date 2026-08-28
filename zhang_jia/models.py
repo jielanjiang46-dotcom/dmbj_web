@@ -61,6 +61,14 @@ class GameRoom(models.Model):
 
 
 class GamePlayer(models.Model):
+    ROLE_WU_XIE = "wu_xie"
+    ROLE_XIAOGE = "xiaoge"
+    ROLE_PANGZI = "pangzi"
+    ROLE_CHOICES = (
+        (ROLE_WU_XIE, "吴邪"),
+        (ROLE_XIAOGE, "张起灵"),
+        (ROLE_PANGZI, "王胖子"),
+    )
 
     # 属于哪个房间
     room = models.ForeignKey(
@@ -80,9 +88,7 @@ class GamePlayer(models.Model):
     # wu_xie
     # zhang_qiling
     # pangzi
-    role = models.CharField(
-        max_length=20
-    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
 
 
     # 加入时间
@@ -93,3 +99,9 @@ class GamePlayer(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("room", "user"), name="unique_player_per_room"),
+            models.UniqueConstraint(fields=("room", "role"), name="unique_role_per_room"),
+        ]

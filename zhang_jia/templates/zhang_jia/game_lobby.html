@@ -1,347 +1,38 @@
 {% extends 'main_app/base.html' %}
-{% load static %}
-
+{% block title %}森林铁三角 · {{ room_id }}{% endblock %}
 {% block content %}
-<body class="iron-triangle-lobby">
-
 <style>
-
-        /* 【新增/修改】覆盖 base.html 的 flex 布局 */
-    /* 让 .main-container 的内容在这个页面里变成上下排列 */
-    .lobby-page-wrapper {
-        display: flex !important;       /* 强制使用 Flex 布局 */
-        flex-direction: column !important; /* 【关键】强制纵向排列（上下结构） */
-        align-items: center;            /* 水平居中 */
-        width: 100%;
-        padding: 20px 0;                /* 上下留点空隙 */
-        box-sizing: border-box;
-    }
-
-    /* 1. 顶部标题区 */
-    .lobby-header {
-        width: 100%;                    /* 占满宽度 */
-        display: flex;
-        justify-content: center;        /* 内容居中 */
-        margin-bottom: 50px;            /* 标题和下面卡片的距离 */
-    }
-
-    .title-wrapper {
-        display: flex;
-        flex-direction: column;         /* 标题和小字垂直排列 */
-        align-items: center;            /* 小字居中对齐 */
-        text-align: center;
-    }
-
-    .lobby-title {
-        font-size: 3rem;
-        color: #ffd700;
-        text-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
-        margin: 0;
-        letter-spacing: 5px;
-    }
-
-    
-    /* 2. 铁三角容器 (保持不变，确保它也是居中的) */
-    .triangle-container {
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-        gap: 80px;
-        width: 100%;
-        max-width: 1200px;
-    }
-
-    /* 3. 单个角色卡片 */
-    .character-slot {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 240px;
-    }
-
-    /* 图片框样式 */
-    .avatar-box {
-        width: 180px;
-        height: 240px;
-        background-color: #2a2a2a;
-        border: 2px solid #444;
-        border-radius: 10px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-bottom: 20px;
-        overflow: hidden;
-        position: relative;
-    }
-    
-
-    .avatar-box img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    /* 占位文字 */
-    .placeholder-text {
-        color: #555;
-        font-size: 14px;
-    }
-
-    /* 名字与状态 */
-    .char-name {
-        font-size: 1.5rem;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    
-    .host .char-name { color: #ffd700; }
-    
-    .char-role {
-        color: #aaa;
-        font-size: 0.9rem;
-        margin-bottom: 15px;
-    }
-
-    /* 状态标签 */
-    .status-badge {
-        padding: 5px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        margin-bottom: 20px;
-    }
-    .status-waiting { background-color: #333; color: #888; border: 1px solid #444; }
-    .status-ready { background-color: #28a745; color: white; }
-
-    /* 邀请按钮 */
-    .invite-btn {
-        background: linear-gradient(45deg, #ff8c00, #ff4500);
-        border: none;
-        color: white;
-        padding: 10px 25px;
-        border-radius: 25px;
-        cursor: pointer;
-        font-weight: bold;
-        transition: all 0.2s;
-        box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .invite-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(255, 69, 0, 0.5);
-    }
-
-    .invite-btn:disabled {
-        background: #444;
-        cursor: not-allowed;
-        box-shadow: none;
-        color: #888;
-    }
-
+.triangle-lobby{width:min(1100px,100%);text-align:center}.lobby-kicker{color:#79806c;letter-spacing:4px;margin:0}.lobby-title{color:#d4af37;font-size:clamp(2rem,5vw,3.4rem);margin:8px 0}.room-code{color:#888;margin-bottom:34px}.triangle-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}.role-card{background:linear-gradient(160deg,#292923,#171916);border:1px solid #454536;border-radius:14px;padding:25px 18px;min-height:280px;display:flex;flex-direction:column;align-items:center}.role-card.host{border-color:#8b742c;box-shadow:0 0 25px rgba(212,175,55,.08)}.role-symbol{width:92px;height:92px;border-radius:50%;display:grid;place-items:center;background:#111;border:1px solid #555;font-size:38px}.role-card h2{margin:18px 0 4px}.role-skill{color:#888;font-size:13px;min-height:38px}.player-name{color:#d4af37;margin:14px 0;font-weight:bold}.waiting{color:#777}.invite-btn,.start-btn{border:1px solid #d4af37;background:transparent;color:#d4af37;border-radius:22px;padding:10px 22px;cursor:pointer}.invite-btn:hover,.start-btn:not(:disabled):hover{background:#d4af37;color:#111}.start-btn{margin-top:30px;min-width:220px;font-weight:bold}.start-btn:disabled{border-color:#555;color:#666;cursor:not-allowed}.lobby-message{color:#999;min-height:24px;margin-top:14px}.invite-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:1200;place-items:center}.invite-modal.active{display:grid}.invite-box{width:min(420px,calc(100% - 40px));background:#202020;border:1px solid #705f25;border-radius:12px;padding:22px;text-align:left}.friend-row{width:100%;display:flex;align-items:center;gap:12px;padding:11px;color:#ddd;background:#292929;border:0;border-bottom:1px solid #383838;cursor:pointer}.friend-row:hover{background:#343126}.friend-row img{width:34px;height:34px;border-radius:50%;object-fit:cover}.game-stage{display:none}.game-stage.active{display:block}.forest-map{position:relative;width:min(900px,100%);aspect-ratio:5/3;margin:20px auto;border:2px solid #5d5730;border-radius:12px;overflow:hidden;background:radial-gradient(circle at 70% 30%,rgba(121,112,51,.18),transparent 25%),repeating-linear-gradient(90deg,transparent 0,transparent calc(5% - 1px),rgba(255,255,255,.025) 5%),repeating-linear-gradient(0deg,transparent 0,transparent calc(8.333% - 1px),rgba(255,255,255,.025) 8.333%),linear-gradient(135deg,#182119,#0c120d)}.forest-map:before{content:'古楼入口';position:absolute;right:3%;top:44%;padding:14px 8px;color:#8d7b39;border:2px solid #665827;background:#111;writing-mode:vertical-rl}.game-token{position:absolute;width:4.2%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;transform:translate(-50%,-50%);font-size:clamp(12px,2vw,20px);font-weight:bold;transition:left .12s linear,top .12s linear;box-shadow:0 0 12px #000}.game-token.wu_xie{background:#d4af37;color:#111}.game-token.xiaoge{background:#4e91a8;color:#fff}.game-token.pangzi{background:#a85d43;color:#fff}.game-token.mine{outline:3px solid rgba(255,255,255,.75)}.game-hud{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;color:#aaa}.control-tip{color:#777;font-size:13px}@media(max-width:760px){.triangle-grid{grid-template-columns:1fr}.forest-map{width:100%}}
 </style>
-
-<!-- 1. 【总外壳】把所有内容包起来，防止被 base.html 挤压 -->
-<div class="lobby-main-container">
-
-    <!-- 2. 顶部标题区 -->
-    <div class="lobby-header">
-        <h1 class="lobby-title">🌲 森林铁三角</h1>
-    </div>
-
-    <!-- 3. 角色站位区 (三个卡片) -->
-    <div class="triangle-container">
-
-        <!-- 左侧：小哥位 -->
-        <div class="character-slot" id="slot-xiaoge">
-            <div class="avatar-box">
-                {% if xiaoge_user %}
-                    <img src="{{ xiaoge_user.avatar_url|default:'/static/img/xiaoge_placeholder.png' }}" alt="小哥">
-                {% else %}
-                    <span class="placeholder-text">Q版小哥图</span>
-                {% endif %}
-            </div>
-            
-            <div class="char-name">
-                {% if xiaoge_user %}{{ xiaoge_user.username }}{% else %}张起灵{% endif %}
-            </div>
-            <div class="char-role">战斗 / 跳跃</div>
-            
-            <div class="status-badge {% if xiaoge_user %}status-ready{% else %}status-waiting{% endif %}">
-                {% if xiaoge_user %}已就绪{% else %}等待加入...{% endif %}
-            </div>
-
-            {% if not xiaoge_user %}
-            <button class="invite-btn" onclick="openInviteModal('xiaoge')">
-                📩 邀请好友
-            </button>
-            {% endif %}
-        </div>
-
-        <!-- 中间：房主位 (吴邪/齐黑瞎) -->
-        <div class="character-slot host">
-            <div class="avatar-box">
-                 <!-- 房主肯定有人 -->
-                {% if pangzi_user %}
-                    <img src="{{ pangzi_user.avatar_url|default:'/static/img/pangzi_placeholder.png' }}" alt="胖子">
-                {% else %}
-                    <span class="placeholder-text">Q版吴邪图</span>
-                {% endif %}
-            </div>
-            
-            <div class="char-name">{{ user.username }} (房主)</div>
-            <div class="char-role">解密 / 提示</div>
-            
-            <div class="status-badge status-ready">已就绪</div>
-            
-            <!-- 占位，保持和其他卡片高度一致 -->
-            <div style="height: 41px;"></div> 
-        </div>
-
-        <!-- 右侧：胖子位 -->
-        <div class="character-slot" id="slot-pangzi">
-            <div class="avatar-box">
-                {% if pangzi_user %}
-                    <img src="{{ pangzi_user.avatar_url|default:'/static/img/pangzi_placeholder.png' }}" alt="胖子">
-                {% else %}
-                    <span class="placeholder-text">Q版胖子图</span>
-                {% endif %}
-            </div>
-            
-            <div class="char-name">
-                {% if pangzi_user %}{{ pangzi_user.username }}{% else %}王胖子{% endif %}
-            </div>
-            <div class="char-role">火力 / 负重</div>
-
-            <div class="status-badge {% if pangzi_user %}status-ready{% else %}status-waiting{% endif %}">
-                {% if pangzi_user %}已就绪{% else %}等待加入...{% endif %}
-            </div>
-
-            {% if not pangzi_user %}
-            <button class="invite-btn" onclick="openInviteModal('pangzi')">
-                📩 邀请好友
-            </button>
-            {% endif %}
-        </div>
-
-    </div>
-</div>
-
-<!-- === 弹窗部分 (保持不变) === -->
-<div id="invite-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:100;">
-    <div style="background:#222; width:400px; margin: 100px auto; padding:20px; border-radius:10px; border:1px solid #444;">
-        <h3 style="color:white; margin-top:0;">选择队友加入队伍</h3>
-        <ul id="friend-list" style="list-style:none; padding:0;">
-            <!-- JS 填充好友列表 -->
-        </ul>
-        <button onclick="closeInviteModal()" style="margin-top:10px; padding:5px 15px; background:#444; color:white; border:none; cursor:pointer;">关闭</button>
-    </div>
-</div>
-
+<section class="triangle-lobby">
+ <p class="lobby-kicker">张家古楼 · 第三层</p><h1 class="lobby-title">森林铁三角</h1><div class="room-code">房间暗号：<strong>{{ room_id }}</strong></div>
+ <div class="triangle-grid">
+  <article class="role-card host" data-role="wu_xie"><div class="role-symbol">🔎</div><h2>吴邪</h2><div class="role-skill">解密机关 · 寻龙提示 · 道具运用</div><div class="player-name" data-player>{% if wu_xie_user %}{{ wu_xie_user.user.username }}{% endif %}</div><span>房主</span></article>
+  <article class="role-card" data-role="xiaoge"><div class="role-symbol">🗡️</div><h2>张起灵</h2><div class="role-skill">快速移动 · 越过陷阱 · 驱散怪物</div><div class="player-name waiting" data-player>{% if xiaoge_user %}{{ xiaoge_user.user.username }}{% else %}等待入队{% endif %}</div>{% if is_host and not xiaoge_user %}<button class="invite-btn" data-invite="xiaoge">邀请好友</button>{% endif %}</article>
+  <article class="role-card" data-role="pangzi"><div class="role-symbol">🧨</div><h2>王胖子</h2><div class="role-skill">搬运重物 · 爆破障碍 · 承受机关</div><div class="player-name waiting" data-player>{% if pangzi_user %}{{ pangzi_user.user.username }}{% else %}等待入队{% endif %}</div>{% if is_host and not pangzi_user %}<button class="invite-btn" data-invite="pangzi">邀请好友</button>{% endif %}</article>
+ </div>
+ {% if is_host %}<button id="start-game" class="start-btn" disabled>等待铁三角集结</button>{% endif %}<div id="lobby-message" class="lobby-message">正在确认墓道中的队友……</div>
+</section>
+<section id="game-stage" class="triangle-lobby game-stage">
+ <p class="lobby-kicker">第一关 · 青铜锁门</p><h1 class="lobby-title">密林入口</h1>
+ <div class="game-hud"><span><b style="color:#d4af37">●</b> 吴邪</span><span><b style="color:#4e91a8">●</b> 张起灵（疾行）</span><span><b style="color:#a85d43">●</b> 王胖子</span></div>
+ <div id="forest-map" class="forest-map" tabindex="0" aria-label="森林铁三角游戏地图"></div>
+ <p class="control-tip">点击地图后，用方向键或 WASD 移动自己的角色。带白圈的是你。</p>
+ <div id="game-message" class="lobby-message">正在点亮矿灯……</div>
+</section>
+<div id="invite-modal" class="invite-modal"><div class="invite-box"><h3 id="invite-title">选择好友</h3><div id="friend-list">正在读取好友名册……</div><button class="invite-btn" type="button" id="close-modal" style="margin-top:16px">关闭</button></div></div>
 <script>
-    // 当前正在邀请的角色位置 ('xiaoge' 或 'pangzi')
-    let currentInviteRole = ''; 
-
-    function openInviteModal(role) {
-    currentInviteRole = role; // 记录当前要邀请的位置（如 'xiaoge' 或 'pangzi'）
-    const modal = document.getElementById('invite-modal');
-    const list = document.getElementById('friend-list');
-    
-    // 1. 显示弹窗并提示加载中
-    modal.style.display = 'block';
-    list.innerHTML = '<li style="color:#888; text-align:center; padding: 20px;">正在联系青铜门网络...</li>';
-
-    // 2. 发起请求 (注意：这里改成了 /api/friends/)
-    fetch('/api/friends/') 
-        .then(res => {
-            if (!res.ok) throw new Error('Network response was not ok');
-            return res.json();
-        })
-        .then(data => {
-            list.innerHTML = ''; // 清空加载提示
-            
-            // 检查数据状态
-            if (data.status === 'ok' && data.friends && data.friends.length > 0) {
-                data.friends.forEach(friend => {
-                    const li = document.createElement('li');
-                    
-                    // 设置样式：深色背景、鼠标悬停效果
-                    li.style.padding = '12px';
-                    li.style.borderBottom = '1px solid #333';
-                    li.style.cursor = 'pointer';
-                    li.style.color = '#ddd';
-                    li.style.display = 'flex'; // 使用 Flex 布局对齐头像和名字
-                    li.style.alignItems = 'center';
-                    li.style.transition = 'background 0.2s';
-                    
-                    // 处理头像：如果有头像就用，没有就用默认占位符
-                    // 注意：这里假设后端返回的 avatar 是相对路径，如果是完整URL则不需要拼接
-                    const avatarSrc = friend.avatar ? friend.avatar : '/media/avatars'; 
-
-                    li.innerHTML = `
-                        <img src="${avatarSrc}" style="width:30px; height:30px; border-radius:50%; margin-right:10px; background:#444;">
-                        <span style="flex-grow:1;">${friend.username}</span>
-                        <span style="font-size:12px; color:${friend.is_online ? '#4caf50' : '#666'}">
-                            ${friend.is_online ? '● 在线' : '○ 离线'}
-                        </span>
-                    `;
-
-                    // 鼠标悬停高亮效果
-                    li.onmouseover = () => li.style.background = '#333';
-                    li.onmouseout = () => li.style.background = 'transparent';
-
-                    // 点击好友发送邀请
-                    li.onclick = () => sendInvitation(friend.id, friend.username);
-                    
-                    list.appendChild(li);
-                });
-            } else {
-                list.innerHTML = '<li style="color:#888; text-align:center; padding: 20px;">暂无好友或好友不在线</li>';
-            }
-        })
-        .catch(err => {
-            console.error('Fetch error:', err);
-            list.innerHTML = '<li style="color:#ff4d4f; text-align:center; padding: 20px;">连接古墓网络失败<br><small>请检查控制台报错</small></li>';
-        });
-}
-
-    function closeInviteModal() {
-        document.getElementById('invite-modal').style.display = 'none';
-    }
-
-    function sendInvitation(friendId, friendName) {
-    closeInviteModal();
-
-    const role = currentInviteRole;
-    const roleName = role === 'xiaoge' ? '小哥' : '胖子';
-
-    // 直接调用 Base APP 的接口，创建一个"游戏邀请"通知
-    fetch('/api/game/invite/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
-        },
-        body: JSON.stringify({
-            target_user_id: friendId,
-            role: role,
-            room_id: '{{ room_id }}'  // 当前游戏房间ID
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'ok') {
-            alert(`✅ 已向 ${friendName} 发送${roleName}位邀请！`);
-        } else {
-            alert(`❌ 邀请失败：${data.msg}`);
-        }
-    })
-    .catch(err => {
-        alert('网络出错，请重试');
-    });
-}
+(()=>{const roomId='{{ room_id|escapejs }}',roleNames={xiaoge:'张起灵',pangzi:'王胖子'},message=document.getElementById('lobby-message'),modal=document.getElementById('invite-modal');let inviteRole=null;
+const csrf=()=>document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';
+function renderPlayers(players,ready,roomStatus){const byRole=Object.fromEntries(players.map(p=>[p.role,p]));document.querySelectorAll('[data-role]').forEach(card=>{const player=byRole[card.dataset.role],node=card.querySelector('[data-player]');node.textContent=player?player.username:'等待入队';node.classList.toggle('waiting',!player);const button=card.querySelector('[data-invite]');if(button&&player)button.remove()});const start=document.getElementById('start-game');if(start){start.disabled=!ready||roomStatus!=='waiting';start.textContent=roomStatus==='playing'?'机关已经开启':(ready?'开启森林机关':'等待铁三角集结')}message.textContent=ready?'铁三角已集结，可以开启机关。':`已有 ${players.length}/3 人进入墓道。`}
+async function refreshRoom(){const response=await fetch(`/zhang_jia/api/game/room-state/${roomId}/`);if(!response.ok)return;const data=await response.json();if(data.status==='ok')renderPlayers(data.players,data.ready,data.room_status)}
+async function openInvite(role){inviteRole=role;document.getElementById('invite-title').textContent=`邀请好友担任${roleNames[role]}`;modal.classList.add('active');const list=document.getElementById('friend-list');list.textContent='正在读取好友名册……';const response=await fetch('/api/friends/'),data=await response.json();list.innerHTML='';if(!data.friends?.length){list.textContent='好友名册还是空的，先去新月饭店认识同伴吧。';return}data.friends.forEach(friend=>{const button=document.createElement('button'),img=document.createElement('img'),name=document.createElement('span');button.className='friend-row';img.src=friend.avatar;img.alt='';name.textContent=friend.username;button.append(img,name);button.addEventListener('click',()=>sendInvite(friend));list.appendChild(button)})}
+async function sendInvite(friend){const response=await fetch('/zhang_jia/api/game/invite/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify({target_user_id:friend.id,role:inviteRole,room_id:roomId})}),data=await response.json();if(!response.ok){alert(data.msg||'邀请没有送达');return}modal.classList.remove('active');message.textContent=`已邀请 ${friend.username} 担任${roleNames[inviteRole]}。`}
+document.querySelectorAll('[data-invite]').forEach(button=>button.addEventListener('click',()=>openInvite(button.dataset.invite)));document.getElementById('close-modal').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',event=>{if(event.target===modal)modal.classList.remove('active')});
+const map=document.getElementById('forest-map'),stage=document.getElementById('game-stage'),gameMessage=document.getElementById('game-message');let myId=null;
+function enterGame(){document.querySelector('section.triangle-lobby:not(.game-stage)').style.display='none';stage.classList.add('active');map.focus()}
+function renderGame(state){enterGame();Object.values(state.players).forEach(player=>{let token=document.getElementById(`player-${player.id}`);if(!token){token=document.createElement('div');token.id=`player-${player.id}`;token.className=`game-token ${player.role}`;token.title=player.username;token.textContent={wu_xie:'吴',xiaoge:'张',pangzi:'胖'}[player.role];map.appendChild(token)}token.classList.toggle('mine',player.id===myId);token.style.left=`${(player.x+.5)/state.width*100}%`;token.style.top=`${(player.y+.5)/state.height*100}%`});const me=state.players[myId];if(me)gameMessage.textContent=`你是${{wu_xie:'吴邪',xiaoge:'张起灵',pangzi:'王胖子'}[me.role]}，当前位置 (${me.x}, ${me.y})`}
+const scheme=location.protocol==='https:'?'wss':'ws',socket=new WebSocket(`${scheme}://${location.host}/ws/iron_triangle/${roomId}/`);socket.onmessage=event=>{const data=JSON.parse(event.data);if(data.type==='room_info'){const players=data.players.map(p=>({id:p.user_id,username:p['user__username'],role:p.role}));renderPlayers(players,players.length===3,'waiting')}else if(data.type==='game_start'){enterGame();gameMessage.textContent='墓门开启——森林机关正在苏醒。'}else if(data.type==='game_state'){myId=data.my_id;renderGame(data.state)}else if(data.type==='error'){message.textContent=data.message;gameMessage.textContent=data.message}};socket.onerror=()=>{message.textContent='墓道通信暂时中断，正在用地面信号确认队伍。'};document.getElementById('start-game')?.addEventListener('click',()=>socket.send(JSON.stringify({action:'start_game'})));
+const directions={ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right'};document.addEventListener('keydown',event=>{const direction=directions[event.key];if(!direction||!stage.classList.contains('active')||socket.readyState!==WebSocket.OPEN)return;event.preventDefault();socket.send(JSON.stringify({action:'move',direction}))});refreshRoom();setInterval(refreshRoom,4000)})();
 </script>
-
-</body>
 {% endblock %}

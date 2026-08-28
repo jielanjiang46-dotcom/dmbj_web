@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User 
@@ -8,6 +8,9 @@ from django.views.decorators.http import require_GET
 from django.views.decorators.http import require_POST
 from .models import GameRoom, GamePlayer
 from accounts.models import Notification
+from accounts.models import Friendship
+from django.db import IntegrityError, transaction
+from django.db.models import Q
 
 
 # Create your views here.
@@ -170,114 +173,135 @@ def api_snake_leaderboard(request):
         'my_username': current_user_name # <--- 前端拿到这个就能高亮显示了！
     })
 
-@login_required
-def game_lobby(request):
+def _player_payload(player):
+    avatar = "/media/avatars/default.jpg"
+    try:
+        if player.user.profile.avatar:
+            avatar = player.user.profile.avatar.url
+    except (AttributeError, ValueError):
+        pass
+    return {
+        "id": player.user_id,
+        "username": player.user.username,
+        "role": player.role,
+        "role_name": player.get_role_display(),
+        "avatar": avatar,
+    }
 
-    # 1. 创建一个森林铁三角房间
-    room = GameRoom.objects.create(
-        host=request.user,
-        game_type="forest_triangle"
-    )
-
-
-    # 2. 让当前用户成为吴邪
-    GamePlayer.objects.create(
-        room=room,
-        user=request.user,
-        role="wu_xie"
-    )
-
-
-    # 3. 打开页面，并把房间号交给前端
-    return render(
-        request,
-        'zhang_jia/game_lobby.html',
-        {
-            'room_id': room.room_id
-        }
-    )
 
 @login_required
-@require_POST
-def send_game_invite(request):
-    """发送游戏邀请通知"""
-    import json
-    data = json.loads(request.body)
-    target_user_id = data.get('target_user_id')
-    role = data.get('role')
-    room_id = data.get('room_id')
-    
-    # 创建一条通知记录（你需要一个 Notification 模型）
-    # 或者复用 Friendship 表，加一个字段区分类型
-    # 简单起见，先打印日志
-    print(f"🔥 游戏邀请: {request.user.username} 邀请 {target_user_id} 担任 {role}，房间 {room_id}")
-    
-    return JsonResponse({'status': 'ok', 'msg': '邀请已发送'})
+def game_lobby(request, room_id=None):
+    """创建森林铁三角房间，或回到一个自己已经加入的房间。"""
+    if room_id is None:
+        room = GameRoom.objects.create(host=request.user, game_type="forest_triangle")
+        GamePlayer.objects.create(room=room, user=request.user, role=GamePlayer.ROLE_WU_XIE)
+        return redirect("zhang_jia:game_room", room_id=room.room_id)
 
-@login_required
-@require_POST
-def send_game_invite(request):
+    room = get_object_or_404(GameRoom, room_id=room_id, game_type="forest_triangle")
+    if not room.players.filter(user=request.user).exists():
+        return redirect("main_app:navigation")
 
-    data = json.loads(request.body)
-
-    target_user_id = data.get('target_user_id')
-    role = data.get('role')
-    room_id = data.get('room_id')
-
-
-    target_user = User.objects.get(
-        id=target_user_id
-    )
-
-
-    Notification.objects.create(
-        from_user=request.user,
-        to_user=target_user,
-        notification_type='game_invite',
-        message=f"""
-邀请你加入森林铁三角游戏
-
-房间号:{room_id}
-
-角色:{role}
-"""
-    )
-
-
-    return JsonResponse({
-        "status":"ok"
+    players = {player.role: player for player in room.players.select_related("user", "user__profile")}
+    return render(request, "zhang_jia/game_lobby.html", {
+        "room": room,
+        "room_id": room.room_id,
+        "is_host": room.host_id == request.user.id,
+        "wu_xie_user": players.get(GamePlayer.ROLE_WU_XIE),
+        "xiaoge_user": players.get(GamePlayer.ROLE_XIAOGE),
+        "pangzi_user": players.get(GamePlayer.ROLE_PANGZI),
     })
+
+
+@login_required
+@require_POST
+def send_game_invite(request):
+    """房主邀请一位好友占据指定角色位。"""
+    try:
+        data = json.loads(request.body)
+        target_user = User.objects.get(id=data.get("target_user_id"))
+        room = GameRoom.objects.get(room_id=data.get("room_id"), host=request.user, status="waiting")
+        role = data.get("role")
+        if role not in (GamePlayer.ROLE_XIAOGE, GamePlayer.ROLE_PANGZI):
+            return JsonResponse({"status": "error", "msg": "无效的角色"}, status=400)
+        if room.players.filter(role=role).exists():
+            return JsonResponse({"status": "error", "msg": "这个角色已经有人了"}, status=409)
+        if room.players.filter(user=target_user).exists():
+            return JsonResponse({"status": "error", "msg": "该好友已经在房间中"}, status=409)
+        are_friends = Friendship.objects.filter(
+            Q(from_user=request.user, to_user=target_user, status=Friendship.STATUS_ACCEPTED)
+            | Q(from_user=target_user, to_user=request.user, status=Friendship.STATUS_ACCEPTED)
+        ).exists()
+        if not are_friends:
+            return JsonResponse({"status": "error", "msg": "只能邀请好友"}, status=403)
+
+        # 同一好友只保留最新的一封游戏邀请，避免旧房间邀请混在通知里。
+        Notification.objects.update_or_create(
+            from_user=request.user,
+            to_user=target_user,
+            notification_type="game_invite",
+            defaults={
+                "message": json.dumps({"room_id": room.room_id, "role": role}, ensure_ascii=False),
+                "is_read": False,
+            },
+        )
+        return JsonResponse({"status": "ok", "msg": "邀请已送达"})
+    except (ValueError, json.JSONDecodeError):
+        return JsonResponse({"status": "error", "msg": "邀请参数有误"}, status=400)
+    except User.DoesNotExist:
+        return JsonResponse({"status": "error", "msg": "好友不存在"}, status=404)
+    except GameRoom.DoesNotExist:
+        return JsonResponse({"status": "error", "msg": "房间不存在或你不是房主"}, status=404)
 
 @login_required
 @require_POST
 def accept_join(request):
-
-    data = json.loads(request.body)
-
-    room_id = data.get('room_id')
-
-
     try:
-        room = GameRoom.objects.get(
-            room_id=room_id
-        )
-
-        GamePlayer.objects.create(
-            room=room,
-            user=request.user,
-            role="待选择"
-        )
-
-
+        data = json.loads(request.body)
+        with transaction.atomic():
+            notification = Notification.objects.select_for_update().get(
+                id=data.get("notification_id"), to_user=request.user,
+                notification_type="game_invite", is_read=False,
+            )
+            invite = json.loads(notification.message)
+            role = invite.get("role")
+            room = GameRoom.objects.select_for_update().get(
+                room_id=invite.get("room_id"), status="waiting"
+            )
+            if notification.from_user_id != room.host_id:
+                return JsonResponse({"status": "error", "msg": "邀请来源无效"}, status=403)
+            if role not in (GamePlayer.ROLE_XIAOGE, GamePlayer.ROLE_PANGZI):
+                return JsonResponse({"status": "error", "msg": "邀请角色无效"}, status=400)
+            if room.players.filter(role=role).exclude(user=request.user).exists():
+                return JsonResponse({"status": "error", "msg": "来迟一步，这个角色已有人加入"}, status=409)
+            if room.players.filter(user=request.user).exclude(role=role).exists():
+                return JsonResponse({"status": "error", "msg": "你已经以其他角色加入房间"}, status=409)
+            GamePlayer.objects.get_or_create(room=room, user=request.user, defaults={"role": role})
+            notification.is_read = True
+            notification.save(update_fields=["is_read"])
         return JsonResponse({
-            "status":"ok",
-            "room_id":room_id
+            "status": "ok",
+            "room_id": room.room_id,
+            "redirect_url": f"/zhang_jia/lobby/{room.room_id}/",
         })
-
-
+    except Notification.DoesNotExist:
+        return JsonResponse({"status": "error", "msg": "邀请不存在或已经处理"}, status=404)
     except GameRoom.DoesNotExist:
+        return JsonResponse({"status": "error", "msg": "房间已经关闭"}, status=404)
+    except (IntegrityError, ValueError, json.JSONDecodeError):
+        return JsonResponse({"status": "error", "msg": "该角色已经被占用"}, status=409)
 
-        return JsonResponse({
-            "status":"error",
-            "msg":"房间不存在"
-        },status=404)
+
+@login_required
+@require_GET
+def room_state(request, room_id):
+    room = get_object_or_404(GameRoom, room_id=room_id, game_type="forest_triangle")
+    if not room.players.filter(user=request.user).exists():
+        return JsonResponse({"status": "error", "msg": "你不在这个房间"}, status=403)
+    players = [_player_payload(p) for p in room.players.select_related("user", "user__profile")]
+    return JsonResponse({
+        "status": "ok",
+        "room_status": room.status,
+        "is_host": room.host_id == request.user.id,
+        "ready": len(players) == 3,
+        "players": players,
+    })

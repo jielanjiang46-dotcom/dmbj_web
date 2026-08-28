@@ -13,6 +13,8 @@ urlpatterns = [
     path('api/get-snake-score/', views.get_snake_score, name='get_snake_score'),
     path('api_snake_leaderboard/', views.api_snake_leaderboard, name='api_snake_leaderboard'),
     path('lobby/', views.game_lobby, name='game_lobby'),
+    path('lobby/<str:room_id>/', views.game_lobby, name='game_room'),
     path('api/game/invite/', views.send_game_invite, name='send_game_invite'),
     path('api/game/accept_join/',views.accept_join,name='accept_join'),
+    path('api/game/room-state/<str:room_id>/', views.room_state, name='room_state'),
 ]

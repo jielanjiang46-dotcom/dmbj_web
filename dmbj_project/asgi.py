@@ -6,13 +6,14 @@ from channels.auth import AuthMiddlewareStack
 # 确保环境变量设置正确
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'dmbj_project.settings')
 
-# 1. 引入我们即将创建的路由配置
-# 注意：这里假设 routing.py 放在和 asgi.py 同级目录下 (即 dmbj_web/routing.py)
+# 必须先初始化 Django 应用注册表，再导入会间接使用模型的 WebSocket 路由。
+django_asgi_app = get_asgi_application()
+
 from dmbj_project.routing import websocket_urlpatterns
 
 application = ProtocolTypeRouter({
     # 处理普通的 HTTP 请求 (网页访问)
-    "http": get_asgi_application(),
+    "http": django_asgi_app,
 
     # 处理 WebSocket 请求
     "websocket": AuthMiddlewareStack(
