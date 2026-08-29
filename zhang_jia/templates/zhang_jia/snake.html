@@ -360,14 +360,20 @@ function gameOverSingle() {
 // ==========================================
 
 function initMultiPlayer() {
+    isGameRunning = false;
+    isPaused = false;
+    myPlayerId = null;
     const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     socket = new WebSocket(wsProtocol + window.location.host + '/ws/snake/' + currentRoomName + '/');
     socket.onopen = function(e) {
         console.log("✅ 已连接到联机战场");
+        isGameRunning = true;
+        canvas.focus();
     };
     socket.onmessage = function(e) {
         const data = JSON.parse(e.data);
         if (data.type === 'update_game') {
+            isGameRunning = true;
             multiGameState.snakes = data.snakes;
             multiGameState.foods = data.foods;
             // 【关键】获取自己的ID

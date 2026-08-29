@@ -105,3 +105,13 @@ class GamePlayer(models.Model):
             models.UniqueConstraint(fields=("room", "user"), name="unique_player_per_room"),
             models.UniqueConstraint(fields=("room", "role"), name="unique_role_per_room"),
         ]
+
+
+class ForestProgress(models.Model):
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="forest_progress"
+    )
+    highest_unlocked_level = models.PositiveSmallIntegerField(default=1)
+
+    def __str__(self):
+        return f"{self.user.username} - 森林铁三角第{self.highest_unlocked_level}关"

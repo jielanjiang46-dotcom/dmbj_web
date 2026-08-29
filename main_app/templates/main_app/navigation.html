@@ -43,6 +43,73 @@
         width: 100%;
     }
 
+    /* 特别篇入口：独立于上方四个主版块 */
+    .special-portal {
+        width: min(560px, 90%);
+        margin-top: 28px;
+        padding-top: 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .special-card {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 13px 20px;
+        color: #b9c2bb;
+        background: rgba(20, 29, 26, 0.72);
+        border: 1px solid rgba(105, 133, 119, 0.38);
+        border-radius: 4px;
+        text-decoration: none;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .special-card::before {
+        content: "SPECIAL FILE";
+        position: absolute;
+        right: -11px;
+        top: 8px;
+        padding: 3px 15px;
+        color: rgba(153, 177, 165, 0.55);
+        border: 1px solid rgba(105, 133, 119, 0.24);
+        font-size: 9px;
+        letter-spacing: 2px;
+        transform: rotate(6deg);
+    }
+
+    .special-card:hover {
+        color: #e1e9e3;
+        background: rgba(31, 46, 40, 0.9);
+        border-color: #708f80;
+        box-shadow: 0 5px 18px rgba(0, 0, 0, 0.38);
+        transform: translateY(-2px);
+    }
+
+    .special-icon {
+        font-size: 1.55em;
+        filter: grayscale(35%);
+    }
+
+    .special-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .special-name {
+        font-size: 0.98em;
+        font-weight: bold;
+        letter-spacing: 3px;
+    }
+
+    .special-desc {
+        color: #718078;
+        font-size: 0.72em;
+        letter-spacing: 1px;
+    }
+
     /* 如果屏幕太窄（比如手机），自动变为2x2的矩阵 */
     @media (max-width: 900px) {
         .portal-grid-compact {
@@ -137,6 +204,16 @@
             <div class="card-desc">权限不足</div>
         </a>
 
+    </div>
+
+    <div class="special-portal">
+        <a href="{% url 'nanbudangan:index' %}" class="special-card">
+            <span class="special-icon">🗂️</span>
+            <span class="special-copy">
+                <span class="special-name">南部档案 · 特别篇</span>
+                <span class="special-desc">一份尚未解封的南方记录</span>
+            </span>
+        </a>
     </div>
 </div>
 

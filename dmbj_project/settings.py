@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'zhang_jia',
     'channels',
     'yucun',
+    'nanbudangan',
 ]
 
 MIDDLEWARE = [

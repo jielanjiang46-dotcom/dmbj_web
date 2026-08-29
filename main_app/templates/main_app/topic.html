@@ -360,7 +360,8 @@
                     {% for comment in entry.comments.all %}
                         <!-- 只显示顶级评论 (parent_comment 为空的) -->
                         {% if not comment.parent_comment %}
-                        <div class="comment-item">
+                        {% include "main_app/_comment.html" with comment=comment entry=entry depth=0 %}
+                        {% comment %}<div class="comment-item">
                             <!-- 【已删除】评论头像 -->
                             <!-- <div class="comment-avatar" ...></div> -->
 
@@ -426,7 +427,7 @@
                                 </div>
                                 {% endfor %}
                             </div>
-                        </div>
+                        </div>{% endcomment %}
                         {% endif %}
                     {% empty %}
                         <p style="color:#666; font-style: italic;">这里还没有贵宾入座。</p>
@@ -483,21 +484,11 @@
     }
 
     // 2. 设置回复目标 (核心修复：确保 ID 和 Name 都正确设置)
-    function setReplyTarget(commentId, username) {
-        // A. 设置隐藏域的值 (给后端用)
-        var hiddenInput = document.getElementById('parent-comment-id-' + commentId);
-        // 兼容逻辑：如果通过 commentId 找不到，尝试通过 entryId 查找（防止嵌套层级问题，简单起见直接遍历）
-        if (!hiddenInput) {
-            // 寻找属于该评论所在 Entry 的隐藏域
-            var entryId = commentId; // 这里简化处理，实际应传入 entry_id
-            // 更鲁棒的做法：遍历所有可能的 entry
-            var allInputs = document.querySelectorAll('input[name="parent_comment_id"]');
-            allInputs.forEach(input => {
-                input.value = commentId;
-            });
-        } else {
-            hiddenInput.value = commentId;
-        }
+    function setReplyTarget(entryId, commentId, username) {
+        var hiddenInput = document.getElementById('parent-comment-id-' + entryId);
+        if (!hiddenInput) return;
+        cancelReply();
+        hiddenInput.value = commentId;
 
         // B. 显示 UI 提示 (回复给谁)
         var indicator = document.getElementById('reply-indicator');
@@ -506,6 +497,8 @@
             targetNameSpan.innerText = username;
             indicator.style.display = 'block';
         }
+        var textarea = document.getElementById('comment-textarea-' + entryId);
+        if (textarea) textarea.focus();
     }
 
     // 3. 取消回复

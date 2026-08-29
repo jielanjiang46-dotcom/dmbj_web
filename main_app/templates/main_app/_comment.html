@@ -1,0 +1,20 @@
+<div class="comment-item{% if depth %} comment-reply{% endif %}"{% if depth %} style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc;"{% endif %}>
+    <div class="comment-content">
+        <div class="comment-header">
+            <a href="{% url 'main_app:user_profile' comment.user.username %}" style="color: #007bff; font-weight: bold;">{{ comment.user.username }}</a>
+            <span class="comment-meta">{{ comment.created_at|date:"m-d H:i" }}</span>
+        </div>
+        <div class="comment-text" id="comment-content-{{ comment.id }}">
+            {% if comment.parent_comment %}<strong>@{{ comment.parent_comment.user.username }}:</strong>{% endif %} {{ comment.content }}
+            {% if comment.image %}<div class="image-preview" style="display:block; margin-top:5px;"><img src="{{ comment.image.url }}" style="max-width:150px; border-radius:4px;"></div>{% endif %}
+        </div>
+        <div class="comment-actions">
+            <span class="btn-reply" onclick="setReplyTarget({{ entry.id }}, {{ comment.id }}, '{{ comment.user.username|escapejs }}')">回复</span>
+            {% if user == comment.user %}
+            <span style="margin-left:10px;" onclick="editComment({{ comment.id }})">编辑</span>
+            <form action="{% url 'main_app:delete_comment' comment.id %}" method="POST" style="display:inline;" onsubmit="return confirm('确定删除这条评论吗？');">{% csrf_token %}<button type="submit" style="background:none; border:none; color:#ff4d4f; font-size:.9em; cursor:pointer; margin-left:10px;">删除</button></form>
+            {% endif %}
+        </div>
+        {% for child in comment.replies.all %}{% include "main_app/_comment.html" with comment=child entry=entry depth=1 %}{% endfor %}
+    </div>
+</div>

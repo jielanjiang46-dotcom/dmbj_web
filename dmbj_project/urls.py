@@ -26,6 +26,7 @@ urlpatterns = [
     path('wang_jia/', include('wang_jia.urls')),
     path('zhang_jia/',include('zhang_jia.urls')),
     path('yucun/',include('yucun.urls')),
+    path('nanbudangan/', include('nanbudangan.urls')),
 ]
 
 if settings.DEBUG:

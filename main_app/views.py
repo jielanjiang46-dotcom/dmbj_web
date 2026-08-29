@@ -25,6 +25,7 @@ def topics(request):
     context = {'topics': topics}
     return render(request, 'main_app/topics.html', context)
 
+@login_required
 def topic(request, topic_id):
     """显示特定主题下的所有条目及其评论"""
     topic = get_object_or_404(Topic, id=topic_id)
@@ -43,12 +44,12 @@ def topic(request, topic_id):
         parent_id = request.POST.get('parent_comment_id')
 
         if content and entry_id:
-            target_entry = get_object_or_404(Entry, id=entry_id)
+            target_entry = get_object_or_404(Entry, id=entry_id, topic=topic)
             parent_comment = None
 
-            if parent_id:
+            if parent_id and parent_id != '0':
                 try:
-                    parent_comment = Comment.objects.get(id=parent_id)
+                    parent_comment = Comment.objects.get(id=parent_id, entry=target_entry)
                 except Comment.DoesNotExist:
                     pass
 
